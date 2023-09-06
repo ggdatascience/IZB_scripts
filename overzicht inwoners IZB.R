@@ -26,7 +26,6 @@ nog_palette = c("#FAE6EF","#F6CCDF","#ED99BE","#E3669E","#D1005D")
 
 # metadata ophalen voor het zoeken van gemeentes
 gemeenten.nog = "Aalten, Apeldoorn, Berkelland, Bronckhorst, Brummen, Doetinchem, Elburg, Epe, Ermelo, Harderwijk, Hattem, Heerde, Lochem, Montferland, Nunspeet, Oldebroek, Oost Gelre, Oude IJsselstreek, Putten, Voorst, Winterswijk, Zutphen"
-#gemeenten.nog = "Dalfsen, Deventer, Hardenberg, Kampen, Olst-Wijhe, Ommen, Raalte, Staphorst, Steenwijkerland, Zwartewaterland, Zwolle"
 gemeenten.nog = str_trim(unlist(str_split(gemeenten.nog, ",")))
 meta = cbs_get_meta("85372NED")
 gemeenten = meta$WijkenEnBuurten %>%
@@ -37,6 +36,9 @@ buurten = meta$WijkenEnBuurten %>%
   left_join(gemeenten %>% select(Municipality, Title) %>% rename(Gemeente=Title), by="Municipality", keep=F)
 
 # kaartdata eenmalig inladen
+# deze is beschikbaar vanaf de website van het CBS: https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-data/cbs-gebiedsindelingen
+# let op: de laagnamen kunnen wisselen tussen versies
+# zie st_layers(bestandsnaam) voor de correcte naam
 kaartdata.gemeente = st_read("../../../../Documenten/kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_gemeente_2021_gegeneraliseerd")
 kaartdata.gemeente = kaartdata.gemeente %>%
   filter(statcode %in% str_trim(gemeenten$Key))
@@ -138,7 +140,7 @@ inwoners.buurt = inwoners.buurt %>%
 ##
 
 # de brontabel is niet meer beschikbaar op de servers van het CBS
-# deze kan, indien gewenst, met een apart script worden ingelezen
+# deze kan, indien gewenst, met een apart script worden ingelezen (zie github)
 meta = cbs_get_meta("03759NED")
 jaar.inwoners = as.numeric(max(meta$Perioden$Title))
 inwoners.leeftijd = read.csv(paste0("../../../../Documenten/CBS data/bevolking_totaal_", jaar.inwoners, ".csv")) %>%
@@ -978,7 +980,7 @@ print(ggplot(vacc.graad %>%
   theme_minimal() +
   theme(axis.text.x = element_text(angle=90)))
 dev.off()
-insertImage(wb, "Vaccinaties", graphname("vacc_heatmap"), startRow=20, startCol=1, width=5, height=5)
+insertImage(wb, "Vaccinaties", graphname("vacc_heatmap"), startRow=27, startCol=1, width=5, height=5)
 
 addWorksheet(wb, "Vaccinaties data")
 setColWidths(wb, "Vaccinaties data", cols=1:2, widths=30)  
