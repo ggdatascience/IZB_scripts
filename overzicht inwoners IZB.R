@@ -39,10 +39,10 @@ buurten = meta$WijkenEnBuurten %>%
 # deze is beschikbaar vanaf de website van het CBS: https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-data/cbs-gebiedsindelingen
 # let op: de laagnamen kunnen wisselen tussen versies
 # zie st_layers(bestandsnaam) voor de correcte naam
-kaartdata.gemeente = st_read("../../../../Documenten/kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_gemeente_2021_gegeneraliseerd")
+kaartdata.gemeente = st_read("../../../../../Gedeelde documenten - NOG W Openbare data/Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_gemeente_2021_gegeneraliseerd")
 kaartdata.gemeente = kaartdata.gemeente %>%
   filter(statcode %in% str_trim(gemeenten$Key))
-kaartdata.buurt = st_read("../../../../Documenten/kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_buurt_2020_gegeneraliseerd")
+kaartdata.buurt = st_read("../../../../../Gedeelde documenten - NOG W Openbare data/Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_buurt_2020_gegeneraliseerd")
 kaartdata.buurt = kaartdata.buurt %>%
   filter(statcode %in% str_trim(buurten$Key))
 
@@ -95,7 +95,7 @@ kaart = function (data, var, title, legend.title, textvar = NA, breaks=NA) {
 ## opleidingen
 ##
 opleiding.gemeente = cbs_get_data("85372NED", WijkenEnBuurten=gemeenten$Key, Marges="MW00000") %>% cbs_add_label_columns()
-# de buurten zijn te groot om in één keer te doen; loopen
+# de buurten zijn te groot om in C)C)n keer te doen; loopen
 opleiding.buurt = lapply(unique(buurten$Municipality), function (gemcode) {
   return(cbs_get_data("85372NED", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode], Marges="MW00000") %>% cbs_add_label_columns())
 })
@@ -139,22 +139,45 @@ inwoners.buurt = inwoners.buurt %>%
 ## inwoners per leeftijd 
 ##
 
-# de brontabel is niet meer beschikbaar op de servers van het CBS
-# deze kan, indien gewenst, met een apart script worden ingelezen (zie github)
 meta = cbs_get_meta("03759NED")
 jaar.inwoners = as.numeric(max(meta$Perioden$Title))
-inwoners.leeftijd = read.csv(paste0("../../../../Documenten/CBS data/bevolking_totaal_", jaar.inwoners, ".csv")) %>%
-  filter(RegioS %in% str_trim(gemeenten$Key))
-inwoners.leeftijd = inwoners.leeftijd %>%
-  filter(BurgerlijkeStaat_label == "Totaal burgerlijke staat") %>%
-  select(Geslacht_label, Leeftijd_label, RegioS, RegioS_label, Bevolking1Jan) %>%
-  mutate(Leeftijd=as.numeric(str_match(Leeftijd_label, "(\\d+) jaar$")[,2]))
+
+inwoners.leeftijd = cbs_get_data("03759ned", BurgerlijkeStaat="T001019",
+                                 Perioden=meta$Perioden$Key[meta$Perioden$Title == max(meta$Perioden$Title)],
+                                 RegioS=meta$RegioS$Key[meta$RegioS$Title %in% gemeenten.nog]) %>%
+  cbs_add_label_columns() %>%
+  mutate(Leeftijd=as.numeric(str_extract(Leeftijd_label, "\\d+"))) %>%
+  filter(Leeftijd_label != "95 jaar of ouder") %>% # er zijn twee speciale gevallen; er is een 95 en een 95 en ouder, en een 105 en ouder, maar geen 105
+                                                   # we kunnen dus niet simpelweg selecteren op 'alleen getal', want dan missen we 105 en ouder
+  rename(Gemeente=RegioS_label, n=BevolkingOp1Januari_1)
+inwoners.gemeente = inwoners.leeftijd %>%
+  group_by(Gemeente) %>%
+  summarize(n=sum(n, na.rm=T))
 inwoners.pergroep = inwoners.leeftijd %>%
   filter(!is.na(Leeftijd), Geslacht_label=="Totaal mannen en vrouwen") %>%
-  mutate(Leeftijd_cat=cut(Leeftijd, c(0, 18, 44, 65, Inf), include.lowest=T)) %>%
-  group_by(Leeftijd_cat) %>%
-  summarise(n=sum(Bevolking1Jan, na.rm=T)) %>%
-  mutate(perc=n/sum(n)*100)
+  mutate(Leeftijdscategorie=cut(Leeftijd, c(0, 18, 44, 65, Inf), include.lowest=T)) %>%
+  group_by(Leeftijdscategorie, Gemeente) %>%
+  summarize(inwoners=sum(n, na.rm=T)) %>%
+  left_join(inwoners.gemeente, by="Gemeente") %>%
+  mutate(inwoners=inwoners/n*100)
+
+# de onderliggende tabel van het CBS (03759) vertoont soms kuren
+# er was een periode dat deze alleen in zijn geheel te downloaden was
+# daarvoor is een extra script beschikbaar; download bevolking.R
+# mocht dit weer zo zijn, dan kan het resultaat daarvan ingelezen worden met deze code:
+#
+# inwoners.leeftijd = read.csv(paste0("../../../../Documenten/CBS data/bevolking_totaal_", jaar.inwoners, ".csv")) %>%
+#   filter(RegioS %in% str_trim(gemeenten$Key))
+# inwoners.leeftijd = inwoners.leeftijd %>%
+#   filter(BurgerlijkeStaat_label == "Totaal burgerlijke staat") %>%
+#   select(Geslacht_label, Leeftijd_label, RegioS, RegioS_label, Bevolking1Jan) %>%
+#   mutate(Leeftijd=as.numeric(str_match(Leeftijd_label, "(\\d+) jaar$")[,2]))
+# inwoners.pergroep = inwoners.leeftijd %>%
+#   filter(!is.na(Leeftijd), Geslacht_label=="Totaal mannen en vrouwen") %>%
+#   mutate(Leeftijd_cat=cut(Leeftijd, c(0, 18, 44, 65, Inf), include.lowest=T)) %>%
+#   group_by(Leeftijd_cat) %>%
+#   summarise(n=sum(Bevolking1Jan, na.rm=T)) %>%
+#   mutate(perc=n/sum(n)*100)
 
 ##
 ## herkomst migranten
@@ -207,7 +230,7 @@ colnames(gezondheid.gemeentes) = str_replace(colnames(gezondheid.buurt), "_\\d+$
 ##
 
 # deze is beschikbaar vanaf de website van Vektis: https://www.vektis.nl/open-data
-zorgkosten = read.csv("../../../../Documenten/CBS data/Vektis gemeente 2021.csv", sep=";")
+zorgkosten = read.csv("Vektis gemeente 2021.csv", sep=";")
 zorgkosten = zorgkosten %>%
   mutate(gemeentenaam=str_to_lower(gemeentenaam)) %>%
   left_join(gemeenten %>% select(Key, Title) %>% mutate(gemeentenaam=str_to_lower(Title)) %>% rename(Gemeentecode=Key, Gemeente=Title), by="gemeentenaam", keep=F) %>%
@@ -370,12 +393,11 @@ for (i in 1:nrow(gemeenten)) {
   setColWidths(wb, "Leeftijden", cols=1:7, widths=12)
   
   inwoners.gemeente = inwoners.leeftijd %>%
-    filter(Geslacht_label != "Totaal mannen en vrouwen", !is.na(Leeftijd), RegioS_label == gemeentenaam) %>%
+    filter(Geslacht_label != "Totaal mannen en vrouwen", !is.na(Leeftijd), Gemeente == gemeentenaam) %>%
     arrange(Leeftijd)
-  inwoners.gemeente.totaal = sum(inwoners.gemeente$Bevolking1Jan, na.rm=T)
+  inwoners.gemeente.totaal = sum(inwoners.gemeente$n, na.rm=T)
   
   displaydata = inwoners.gemeente %>%
-    rename(n=Bevolking1Jan) %>%
     select(Leeftijd, n, Geslacht_label) %>%
     mutate(perc=n/inwoners.gemeente.totaal) %>%
     pivot_wider(names_from="Geslacht_label", values_from=c("n", "perc")) %>%
@@ -389,7 +411,7 @@ for (i in 1:nrow(gemeenten)) {
   displaydata = inwoners.gemeente %>%
     mutate(Leeftijd_cat=(cut(Leeftijd, breaks=seq(-1, max(Leeftijd)+5, 5), labels=F)-1)*5) %>%
     group_by(Leeftijd_cat, Geslacht_label) %>%
-    summarise(perc=sum(Bevolking1Jan, na.rm=T)/inwoners.gemeente.totaal*100) %>%
+    summarise(perc=sum(n, na.rm=T)/inwoners.gemeente.totaal*100) %>%
     mutate(perc=ifelse(Geslacht_label == "Mannen", -1*perc, perc))
   range.x = pretty(displaydata$perc)
   png(graphname("leeftijden"))
@@ -425,7 +447,7 @@ for (i in 1:nrow(gemeenten)) {
   
   png(graphname("herkomst_migranten"))
   print(ggplot(perc.migr %>%
-           filter(RegioS_label == gemeentenaam, Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "Azië", "Oceanië")) %>%
+           filter(RegioS_label == gemeentenaam, Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "AziC+", "OceaniC+")) %>%
            mutate(perc_label = sprintf("%0.1f%%", perc)),
          aes(x=Herkomstland_label, y=n, fill=Herkomstland_label)) +
     geom_col() +
@@ -599,7 +621,7 @@ for (i in 1:nrow(gemeenten)) {
   rownames(displaydata) = str_replace(zorgkosten.leeftijd$leeftijdsklasse[1:19], " jaar", "")
   
   png(graphname("zorgkosten"))
-  barplot(t(displaydata), main="Zorgkosten per persoon per jaar", ylab="Kosten (€)", beside=T, col=nog_colors[1:2],
+  barplot(t(displaydata), main="Zorgkosten per persoon per jaar", ylab="Kosten (b,)", beside=T, col=nog_colors[1:2],
           legend.text=c("Mannen", "Vrouwen"), args.legend=c(x="topleft"), las=2)
   dev.off()
   insertImage(wb, "Zorgkosten", graphname("zorgkosten"), startRow=2, startCol=2, width=5, height=5)
@@ -616,7 +638,7 @@ for (i in 1:nrow(gemeenten)) {
     mutate(display=ifelse(statnaam == gemeentenaam, gemeentenaam, ""))
   
   png(graphname("zorgkosten_kaart"))
-  print(kaart(kaartdata, var="Bedrag", title="Gemiddelde zorgkosten p.p.p.j.", legend.title="Bedrag (€)", textvar="display"))
+  print(kaart(kaartdata, var="Bedrag", title="Gemiddelde zorgkosten p.p.p.j.", legend.title="Bedrag (b,)", textvar="display"))
   dev.off()
   insertImage(wb, "Zorgkosten", graphname("zorgkosten_kaart"), startRow=2, startCol=8, width=5, height=5)
   
@@ -768,7 +790,7 @@ setColWidths(wb, "Leeftijden", cols=1:7, widths=12)
 inwoners.nog = inwoners.leeftijd %>%
   filter(Geslacht_label != "Totaal mannen en vrouwen", !is.na(Leeftijd)) %>%
   group_by(Geslacht_label, Leeftijd) %>%
-  summarize(n=sum(Bevolking1Jan)) %>%
+  summarize(n=sum(n)) %>%
   arrange(Leeftijd)
 inwoners.nog.totaal = sum(inwoners.nog$n, na.rm=T)
 
@@ -812,7 +834,7 @@ addWorksheet(wb, "Migranten")
 
 png(graphname("herkomst_migranten"))
 print(ggplot(perc.migr %>%
-               filter(Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "Azië", "Oceanië")) %>%
+               filter(Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "AziC+", "OceaniC+")) %>%
                group_by(Herkomstland_label) %>%
                summarize(n=sum(n, na.rm=T), Bevolking_1=sum(Bevolking_1, na.rm=T)) %>%
                mutate(perc=n/Bevolking_1*100,
@@ -829,7 +851,7 @@ insertImage(wb, "Migranten", graphname("herkomst_migranten"), startRow=2, startC
 
 png(graphname("herkomst_migranten_gesplitst"), width=800, height=500)
 print(ggplot(perc.migr %>%
-               filter(Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "Azië", "Oceanië")) %>%
+               filter(Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "AziC+", "OceaniC+")) %>%
                mutate(perc_label = sprintf("%0.1f%%", perc)),
              aes(x=RegioS_label, y=perc, fill=Herkomstland_label)) +
         geom_col(position="dodge") +
@@ -1036,7 +1058,7 @@ colnames(displaydata) = c("M", "V")
 rownames(displaydata) = str_replace(zorgkosten.leeftijd$leeftijdsklasse[1:19], " jaar", "")
 
 png(graphname("zorgkosten"))
-barplot(t(displaydata), main="Zorgkosten per persoon per jaar", ylab="Kosten (€)", beside=T, col=nog_colors[1:2],
+barplot(t(displaydata), main="Zorgkosten per persoon per jaar", ylab="Kosten (b,)", beside=T, col=nog_colors[1:2],
         legend.text=c("Mannen", "Vrouwen"), args.legend=c(x="topleft"), las=2)
 dev.off()
 insertImage(wb, "Zorgkosten", graphname("zorgkosten"), startRow=2, startCol=2, width=5, height=5)
@@ -1053,7 +1075,7 @@ kaartdata = kaartdata.gemeente %>% filter(statnaam %in% displaydata$gemeentenaam
   left_join(displaydata, by=c("statnaam"="gemeentenaam"))
 
 png(graphname("zorgkosten_kaart"))
-print(kaart(kaartdata, var="Bedrag", title="Gemiddelde zorgkosten p.p.p.j.", legend.title="Bedrag (€)"))
+print(kaart(kaartdata, var="Bedrag", title="Gemiddelde zorgkosten p.p.p.j.", legend.title="Bedrag (b,)"))
 dev.off()
 insertImage(wb, "Zorgkosten", graphname("zorgkosten_kaart"), startRow=2, startCol=8, width=5, height=5)
 
