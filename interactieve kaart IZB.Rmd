@@ -1,0 +1,266 @@
+---
+title: "Interactieve kaart"
+author: "Aart Dijkstra"
+date: "2023-09-18"
+output: html_document
+---
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+library(openxlsx)
+library(cbsodataR)
+library(leaflet)
+library(sf)
+
+# wrapper voor sprintf, voor makkelijk weergeven
+printf = function (...) cat(paste(sprintf(...),"\n"))
+
+# GGD NOG kleuren
+nog_colors = c("#1D1756", "#D1005D", "#2F6594", "#D3DFF1", "#FFBDDB")
+nog_palette = c("#FAE6EF","#F6CCDF","#ED99BE","#E3669E","#D1005D")
+blue_palette = c("#ccf9ff", "#7ce8ff", "#55d0ff", "#00acdf", "#0080bf")
+
+# metadata ophalen voor het zoeken van gemeentes
+gemeenten.nog = "Aalten, Apeldoorn, Berkelland, Bronckhorst, Brummen, Doetinchem, Elburg, Epe, Ermelo, Harderwijk, Hattem, Heerde, Lochem, Montferland, Nunspeet, Oldebroek, Oost Gelre, Oude IJsselstreek, Putten, Voorst, Winterswijk, Zutphen"
+gemeenten.nog = str_trim(unlist(str_split(gemeenten.nog, ",")))
+
+# kaartdata eenmalig inladen
+kaartdata.gemeente = st_read("../../Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_gemeente_2022_gegeneraliseerd")
+
+kaartdata.ggd = st_read("../../Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer="cbs_ggdregio_2021_gegeneraliseerd")
+
+kaartdata.buurten = st_read("../../Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_buurt_2020_gegeneraliseerd")
+
+kaartdata.pc4 = st_read("../../Kaarten/pc4_arcgis.shp")
+```
+
+# Onderdelen
+
+## Zorgkosten per gemeente
+```{r}
+# zorgkosten zijn te vinden bij Vektis: https://www.vektis.nl/open-data
+zorgkosten = read.csv("../../Datasets/Vektis gemeente 2021.csv", sep=";") %>%
+  filter(gemeentenaam %in% str_to_upper(gemeenten.nog)) %>%
+  mutate(gemeentenaam=str_to_title(gemeentenaam, locale="nl"))
+
+zorgkosten.pj = zorgkosten %>%
+  group_by(gemeentenaam) %>%
+  summarize(across(where(is.numeric), ~sum(.x, na.rm=T))) %>%
+  rowwise() %>%
+  transmute(gemeentenaam=gemeentenaam,
+            kosten=sum(c_across(kosten_medisch_specialistische_zorg:kosten_overig), na.rm=T),
+            verzekerdejaren=aantal_verzekerdejaren,
+            kostenpj=kosten/verzekerdejaren,
+            tekst=sprintf("%s\n€ %s", gemeentenaam, suppressWarnings(format(kostenpj, digits=1, big.mark="."))))
+
+zorgkostenpalette = colorQuantile(nog_palette, zorgkosten.pj$kostenpj)
+```
+
+## SES-WOA en bevolkingsdichtheid
+```{r}
+meta = cbs_get_meta("85163NED")
+gemeenten = meta$WijkenEnBuurten %>%
+  filter(str_starts(Key, "GM")) %>%
+  filter(Title %in% gemeenten.nog)
+buurten = meta$WijkenEnBuurten %>%
+  filter(str_sub(Key, end=6) %in% str_trim(str_replace(gemeenten$Key, "GM", "BU"))) %>%
+  left_join(gemeenten %>% select(Municipality, Title) %>% rename(Gemeente=Title), by="Municipality", keep=F)
+seswoa = lapply(unique(buurten$Municipality), function (gemcode) {
+  return(cbs_get_data("85163NED", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode], Perioden="2019JJ00") %>% cbs_add_label_columns())
+})
+seswoa = bind_rows(seswoa) %>%
+  select(starts_with("WijkenEn"), GemiddeldeScore_29) %>%
+  rename(seswoa=GemiddeldeScore_29) %>%
+  mutate(label=sprintf("%s: %.2f", WijkenEnBuurten_label, seswoa))
+
+seswoapalette = colorQuantile(nog_palette, seswoa$seswoa)
+
+bevolkingsdichtheid = lapply(unique(buurten$Municipality), function (gemcode) {
+  return(cbs_get_data("85318NED", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode], select=c("WijkenEnBuurten", "Bevolkingsdichtheid_33")) %>% cbs_add_label_columns())
+})
+bevolkingsdichtheid = bind_rows(bevolkingsdichtheid) %>%
+  rename(dichtheid=Bevolkingsdichtheid_33) %>%
+  mutate(label=sprintf("%s: %d per km2", WijkenEnBuurten_label, dichtheid))
+
+bevolkingsdichtheidpalette = colorQuantile(nog_palette, bevolkingsdichtheid$dichtheid)
+```
+
+## Agrarische bedrijven
+```{r}
+# data afkomstig uit KvK-register; op te vragen bij KvK
+data.kvk = read.xlsx("../../../Vertrouwelijke documenten - Team Infectieziektenbestrijding/7_Kennis en onderzoek/Adressen bedrijven regio NOG/adressenlijst juni 2023.xlsx") %>%
+  # twee adressen aanwezig in de lijst; wij willen VA (vestigingsadres) i.p.v. CA (contactadres)
+  mutate(postcode=paste0(PCVA_CIJF, PCVA_LTRS),
+         huisnummer=str_extract(STRVA, "\\d+(.*?)$"))
+
+# landbouw en veehouderij beginnen allemaal met 011 t/m 015, zie https://sbi.cbs.nl/CBS.TypeerModule.TypeerServiceWebAPI/content/angular/app/#/tree
+agrarisch = data.kvk %>%
+  filter(str_starts(SBI, "011") | str_starts(SBI, "012") | str_starts(SBI, "013") | str_starts(SBI, "014") | str_starts(SBI, "015"),
+         W_P_TOTAAL > 1) %>%
+  mutate(SBI_groep=case_when(str_starts(SBI, "011") | str_starts(SBI, "012") | str_starts(SBI, "013") ~ "Teelt van gewassen",
+                             str_starts(SBI, "014") ~ "Fokken en houden van dieren",
+                             str_starts(SBI, "015") ~ "Combinatie"),
+         popup=sprintf("%s<br />%s (%s)<br />Werkzame personen: %d", HN45, SBI_OMSCHR, SBI, W_P_TOTAAL))
+
+agrarischpalette = colorFactor("Set1", agrarisch$SBI_groep)
+
+kaartdata.pc6.agrarisch = st_read("../../Kaarten/PC6.shp") %>%
+  filter(PC6 %in% agrarisch$postcode) %>%
+  st_make_valid()
+```
+
+## Huisartsen/zorgverleners
+```{r}
+huisartsen = data.kvk %>%
+  # huisartsen, tandartsen, etc. beginnen allemaal met 862
+  filter(str_starts(SBI, "862"))
+
+# er kunnen meerdere huisartsen gevestigd zijn op één adres
+# in dat geval nemen we aan dat het gaat om een samenwerkingsverband
+huisartsen = huisartsen %>%
+  group_by(postcode, huisnummer, SBI) %>%
+  summarize(postcode=first(postcode),
+            huisnummer=first(huisnummer),
+            namen=str_c(HN45, collapse=", "),
+            adres=paste0(first(STRVA), " ", first(PCPLVA)),
+            werkzamepersonen=sum(W_P_TOTAAL),
+            SBI_OMSCHR=first(SBI_OMSCHR)) %>%
+  mutate(label=sprintf("%s (%d zorgverleners)", adres, werkzamepersonen),
+         popup=sprintf("%s<br />%s<br />%d zorgverleners", namen, SBI_OMSCHR, werkzamepersonen))
+
+huisartsenpalette = colorFactor("Set2", huisartsen$SBI_OMSCHR)
+
+kaartdata.pc6.huisartsen = st_read("../../Kaarten/PC6.shp") %>%
+  filter(PC6 %in% huisartsen$postcode) %>%
+  st_make_valid()
+```
+
+## Bedrijven en werknemers
+```{r}
+SBI = read.xlsx("indeling_SBI.xlsx")
+werkadressen = data.kvk %>%
+  mutate(SBI_prefix=str_sub(SBI, end=2)) %>%
+  left_join(SBI, by="SBI_prefix") %>%
+  group_by(postcode, cat_naam) %>%
+  arrange(desc(W_P_TOTAAL)) %>%
+  summarize(bedrijfsnaam=str_c(HN45, collapse=", "), werknemers=sum(W_P_TOTAAL, na.rm=T), SBI=str_c(sprintf("%s (%s)", SBI_OMSCHR, SBI), collapse=", ")) %>%
+  mutate(label=sprintf("%s (%d personen)", bedrijfsnaam, werknemers),
+         popup=sprintf("%s<br />%s - %s<br />%d werkzame personen", bedrijfsnaam, cat_naam, SBI, werknemers))
+
+werkadressenpalette = colorFactor("Set2", werkadressen$cat_naam)
+  
+kaartdata.pc6.werkadressen = st_read("../../Kaarten/PC6.shp") %>%
+  filter(PC6 %in% werkadressen$postcode) %>%
+  st_make_valid()
+```
+
+## Koeltorens
+```{r}
+# koeltorens zijn afkomstig van het nationaal georegister: https://nationaalgeoregister.nl/geonetwork/srv/dut/catalog.search#/metadata/504bd381-8e23-4bcd-9302-bb693d470a6d?tab=relations
+koeltorens = st_read("../../Kaarten/Koeltorens/koeltoren_geaccepteerdPoint.shp") %>%
+  mutate(bedrijfsna=str_replace(bedrijfsna, "\\W", ""), # er zitten wat gekke tekens in de bedrijfsnamen, vooral door Nestlé
+         postcode=str_trim(postcode),
+         PC4=as.numeric(str_sub(postcode, end=4)))
+
+pc4.nog = read.xlsx("../../Kaarten/Relatietabel_PC_-GGD-Gemeente-VHR-_per 1-1-2017.xlsx", sheet=2)
+
+koeltorens = koeltorens %>%
+  left_join(pc4.nog %>% select(Pc4nr,ggdnaam), by=c("PC4"="Pc4nr")) %>%
+  filter(ggdnaam == 'GGD Noord en Oost Gelderland') %>%
+  mutate(label=sprintf("%d toren(s) - gebruik: %s", aantal, str_to_lower(gebruik)),
+         popup=sprintf("%s - %d toren(s)<br />Gebruik: %s (sinds %s)<br />Risico: %d<br />Beschrijving: %s",
+                       bedrijfsna, aantal, str_to_lower(gebruik), meldingsda, risico_cat, htmltools::htmlEscape(beschrijvi)))
+```
+
+
+# Kaart
+```{r fig.width=14, fig.height=10}
+# fancy manier om aantal werknemers weer te geven ipv aantal adressen
+# options.W_P wordt meegegeven in addCircleMarkers
+iconFunction = JS("function (cluster) {    
+    var markers = cluster.getAllChildMarkers();
+    var sum = 0; 
+    for (i = 0; i < markers.length; i++) {
+      sum += Number(markers[i].options.W_P);
+    }
+    
+    var c = ' marker-cluster-';
+		if (sum < 50) {
+			c += 'small';
+		} else if (sum < 200) {
+			c += 'medium';
+		} else {
+			c += 'large';
+		}
+
+		return new L.DivIcon({ html: '<div><span>' + sum + ' <span aria-label=\"markers\"></span>' + '</span></div>', className: 'marker-cluster' + c, iconSize: new L.Point(40, 40) });
+}")
+
+leaflet() %>%
+  addTiles() %>%
+  #addPolygons(color=~statnaam, fillColor=NA) %>%
+  addPolygons(data=kaartdata.gemeente %>%
+                right_join(zorgkosten.pj, by=c("statnaam"="gemeentenaam")) %>%
+                st_transform(4326),
+              fillColor=~zorgkostenpalette(kostenpj),
+              fillOpacity=0.6,
+              color=nog_colors[2],
+              label=~tekst,
+              group="Zorgkosten") %>%
+  addPolygons(data=kaartdata.buurten %>%
+                right_join(seswoa, by=c("statcode"="WijkenEnBuurten")) %>%
+                st_transform(4326),
+              fillColor=~seswoapalette(seswoa),
+              fillOpacity=0.8,
+              color=NA,
+              label=~label,
+              group="SES-WOA") %>%
+  addPolygons(data=kaartdata.buurten %>%
+                right_join(bevolkingsdichtheid, by=c("statcode"="WijkenEnBuurten")) %>%
+                st_transform(4326),
+              fillColor=~bevolkingsdichtheidpalette(dichtheid),
+              fillOpacity=0.8,
+              color=NA,
+              label=~label,
+              group="Bevolkingsdichtheid") %>%
+  addCircleMarkers(data=kaartdata.pc6.agrarisch %>%
+                     right_join(agrarisch, by=c("PC6"="postcode")) %>%
+                     st_centroid(),
+                   radius=~W_P_TOTAAL*2,
+                   color=~agrarischpalette(SBI_groep),
+                   opacity=0.8,
+                   label=~HN45,
+                   popup=~popup,
+                   options=markerOptions(W_P=~W_P_TOTAAL),
+                   clusterOptions=markerClusterOptions(iconCreateFunction=iconFunction, spiderfyDistanceMultiplier=1.5),
+                   group="Agrarische bedrijven") %>%
+  addCircleMarkers(data=kaartdata.pc6.huisartsen %>%
+                     left_join(huisartsen, by=c("PC6"="postcode")) %>%
+                     st_centroid(),
+                   radius=~werkzamepersonen*2,
+                   color=~huisartsenpalette(SBI_OMSCHR),
+                   opacity=0.8,
+                   label=~label,
+                   popup=~popup,
+                   options=markerOptions(W_P=~werkzamepersonen),
+                   clusterOptions=markerClusterOptions(iconCreateFunction=iconFunction, spiderfyDistanceMultiplier=1.5),
+                   group="Zorgverleners") %>%
+  addCircleMarkers(data=kaartdata.pc6.werkadressen %>%
+                     left_join(werkadressen, by=c("PC6"="postcode")) %>%
+                     st_centroid(),
+                   radius=~werknemers*2,
+                   color=~werkadressenpalette(cat_naam),
+                   opacity=0.8,
+                   label=~label,
+                   popup=~popup,
+                   options=markerOptions(W_P=~werknemers),
+                   clusterOptions=markerClusterOptions(iconCreateFunction=iconFunction, spiderfyDistanceMultiplier=1.5),
+                   group="Werkadressen") %>%
+  addMarkers(data=koeltorens %>% st_transform(4326),
+             label=~label,
+             popup=~popup,
+             group="Koeltorens") %>%
+  hideGroup(c("SES-WOA", "Bevolkingsdichtheid", "Agrarische bedrijven", "Zorgverleners", "Werkadressen", "Koeltorens")) %>%
+  addLayersControl(overlayGroups=c("Zorgkosten", "SES-WOA", "Bevolkingsdichtheid", "Agrarische bedrijven", "Zorgverleners", "Werkadressen", "Koeltorens"))
+```
+
