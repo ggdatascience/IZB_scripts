@@ -9,6 +9,7 @@ library(tidyverse)
 library(this.path)
 library(openxlsx)
 library(cbsodataR)
+library(leaflet)
 library(tmap)
 library(maptiles)
 library(sf)
@@ -28,28 +29,52 @@ gemeenten.nog = "Aalten, Apeldoorn, Berkelland, Bronckhorst, Brummen, Doetinchem
 gemeenten.nog = str_trim(unlist(str_split(gemeenten.nog, ",")))
 
 # kaartdata eenmalig inladen
-kaartdata.gemeente = st_read("kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_gemeente_2022_gegeneraliseerd")
+kaartdata.gemeente = st_read("../Gedeelde documenten - NOG W Openbare data/Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_gemeente_2022_gegeneraliseerd")
 
-kaartdata.ggd = st_read("kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer="cbs_ggdregio_2021_gegeneraliseerd")
+kaartdata.ggd = st_read("../Gedeelde documenten - NOG W Openbare data/Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer="cbs_ggdregio_2021_gegeneraliseerd")
 
-kaartdata.buurten = st_read("kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_buurt_2020_gegeneraliseerd")
+kaartdata.provincie = st_read("../Gedeelde documenten - NOG W Openbare data/Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer="cbs_provincie_2020_gegeneraliseerd")
 
-kaartdata.pc4 = st_read("kaarten/pc4_arcgis.shp")
+kaartdata.buurten = st_read("../Gedeelde documenten - NOG W Openbare data/Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_buurt_2020_gegeneraliseerd")
+
+kaartdata.pc4 = st_read("../Gedeelde documenten - NOG W Openbare data/Kaarten/pc4_arcgis.shp")
 
 ###
 ### Regioindelingen zorg
 ###
 
 meta = cbs_get_meta("85385NED")
-data.regios = cbs_get_data("85385NED") %>% cbs_add_label_columns()
-data.regios$RegioS = str_trim(data.regios$RegioS)
-data.regios$RegioS_label = str_trim(data.regios$RegioS_label)
+data.regios = cbs_get_data("85385NED") %>%
+  cbs_add_label_columns() %>%
+  mutate(RegioS=str_trim(RegioS),
+         RegioS_label=str_trim(RegioS_label))
 # Naam_15 = GGD
+# Naam_27 = Provincie
 
+# TBS-regio
+png("kaarten IZB/regioindeling TBC.png", width=1200, height=1200)
+tm_shape(kaartdata.provincie %>%
+           mutate(regio=case_when(statnaam %in% c("Groningen", "Friesland", "Drenthe", "Overijssel", "Gelderland") ~ "Noord-Oost",
+                                  statnaam %in% c("Flevoland", "Noord-Holland", "Utrecht") ~ "Noord-West",
+                                  statnaam %in% c("Zeeland", "Noord-Brabant", "Limburg") ~ "Zuid",
+                                  T ~ "Zuid-Holland"))) +
+  tm_fill(col="regio",
+          palette=nog_colors[2:5],
+          title="Regionaal expertisecentrum") +
+tm_shape(kaartdata.ggd) +
+  tm_text(text="statnaam", size="AREA", size.lowerbound=0.8, print.tiny=T) +
+  tm_borders(col=nog_colors[1]) +
+  tm_layout(main.title="Regioindeling tuberculosebestrijding",
+            main.title.size=2,
+            frame=F,
+            scale=1.5)
+dev.off()
+
+# ROAZ-regio
 roaz = read.table("CBS data/roazregios.csv", sep=";", header=T) %>%
   mutate(gemeentecode=sprintf("GM%04.0f", CBS))
 
-png("kaarten IZB/regioindeling.png", width=1200, height=1200)
+png("kaarten IZB/regioindeling ROAZ.png", width=1200, height=1200)
 tm_shape(kaartdata.gemeente %>% right_join(roaz %>% filter(str_detect(ROAZ.regio.s, "Euregio|Oost|Zwolle|Midden-Nederland")), by=c("statcode"="gemeentecode"))) +
   tm_fill(col="ROAZ.regio.s",
           palette=nog_colors[2:4],
@@ -85,7 +110,7 @@ zorgkosten.pj = zorgkosten %>%
             kosten=sum(c_across(kosten_medisch_specialistische_zorg:kosten_overig), na.rm=T),
             verzekerdejaren=aantal_verzekerdejaren,
             kostenpj=kosten/verzekerdejaren,
-            tekst=sprintf("%s\n€ %s", gemeentenaam, format(kostenpj, digits=1, big.mark=".")))
+            tekst=sprintf("%s\n??? %s", gemeentenaam, format(kostenpj, digits=1, big.mark=".")))
 
 zorgkosten.totaal = zorgkosten %>%
   summarize(across(where(is.numeric), ~sum(.x, na.rm=T))) %>%
@@ -139,17 +164,31 @@ printf("Volgens de verzekeringsdata waren er in dit jaar %d verzekerden bekend, 
 ## Inwoners en SES
 ##
 
-inwoners.gemeente.leeftijd = read.csv("CBS data/inwoners_gemeente_per_leeftijd_2022.csv")
+# de onderliggende tabel van het CBS (03759) vertoont soms kuren
+# er was een periode dat deze alleen in zijn geheel te downloaden was
+# daarvoor is een extra script beschikbaar; download bevolking.R
+# mocht dit weer zo zijn, dan kan het resultaat daarvan ingelezen worden:
+#
+# inwoners.gemeente.leeftijd = read.csv("CBS data/inwoners_gemeente_per_leeftijd_2022.csv")
+
+meta = cbs_get_meta("03759ned")
+inwoners.gemeente.leeftijd = cbs_get_data("03759ned", Geslacht="T001038", BurgelijkeStaat="T001019",
+                                          Perioden=meta$Perioden$Key[meta$Perioden$Title == max(meta$Perioden$Title)],
+                                          RegioS=meta$RegioS$Key[meta$RegioS$Title %in% gemeenten.nog]) %>%
+  cbs_add_label_columns() %>%
+  mutate(Leeftijd=as.numeric(str_extract(Leeftijd_label, "\\d+"))) %>%
+  rename(Gemeente=RegioS_label, n=BevolkingOp1Januari_1)
 inwoners.gemeente = inwoners.gemeente.leeftijd %>%
   group_by(Gemeente) %>%
   summarize(n=sum(n, na.rm=T))
 inwoners.gemeente.leeftijdscategorie = inwoners.gemeente.leeftijd %>%
+  filter(!is.na(Leeftijd)) %>%
   mutate(Leeftijdscategorie=cut(Leeftijd, breaks=c(seq(0, 90, 5), Inf), labels=c(sprintf("%d t/m %d jaar", seq(0, 89, 5), seq(0, 89, 5)+4), "90+"), right=F)) %>%
   group_by(Gemeente, Leeftijdscategorie) %>%
   summarize(inwoners=sum(n, na.rm=T)) %>%
   left_join(inwoners.gemeente, by="Gemeente") %>%
   mutate(inwoners=inwoners/n*100)
-png("kaarten IZB/inwoners_leeftijd.png", width=1000, height=1000, bg="transparent")
+png("kaarten IZB/inwoners_leeftijd.png", width=1000, height=1000)
 ggplot(inwoners.gemeente.leeftijdscategorie, aes(x=Leeftijdscategorie, y=fct_rev(Gemeente), fill=inwoners)) +
   scale_fill_gradient(low="#e8e8ee", high=nog_colors[1], name="Percentage", labels=function (x) { return(paste0(format(x, small.mark=","), "%")) }) +
   geom_tile(color="white", lwd=1) +
