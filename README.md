@@ -3,6 +3,9 @@ Een collectie handige scripts voor de dagelijkse vragen binnen IZB.
 
 # Aanwezige scripts
 
+## IZB dashboard
+De databasebestanden en een voorbeeldindeling van de agents/infections/diagnoses in HPZone zijn hier te vinden. Tevens is er een omschrijving van de dataverwerking en een verwerkingsscript toegevoegd. Hiermee is vrij snel een IZB dashboard op te zetten.
+
 ## download bevolking.R
 De tabel met inwonersaantallen was in augustus en september 2023 niet meer direct op te vragen via de OData-feed van het CBS. Deze kon toen alleen in zijn geheel worden gedownload. Dit is veel te groot voor dagelijks gebruik, waardoor een kleine export handiger is. Deze kan worden gemaakt met dit script. Uitvoeren is echter bijzonder intensief, waardoor de meeste GGD-computers deze niet uit kunnen voeren. Het is dan ook alleen als laatste redmiddel bedoeld.
 
