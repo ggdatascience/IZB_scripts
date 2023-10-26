@@ -1,0 +1,61 @@
+"groep_id","groep_naam","groep_meldingsplichtig"
+1,"Polio",1
+2,"Anthrax",1
+3,"Voedselinfectie",1
+4,"Botulisme",1
+5,"Brucellose",1
+6,"Cholera",1
+7,"Creutzfeldt-Jakob",1
+9,"Virale hemorragische koorts",1
+10,"Difterie",1
+11,"Tuberculose",1
+12,"STEC/Enterohemorragische E.coli-infectie",1
+13,"Invasieve Haemophilus influenzae type b-infectie",1
+14,"Hantavirusinfectie",1
+15,"Hepatitis A",1
+16,"Hepatitis B",1
+17,"Hepatitis C",1
+18,"Humane infectie met aviair Influenzavirus",1
+19,"Nieuwe Influenza A (H1N1)",1
+20,"Legionellose",1
+21,"Leptospirosis",1
+22,"Listeriose",1
+23,"Malaria",1
+24,"Mazelen (Morbilli)",1
+25,"Meningokokkenziekte",1
+26,"Bof (Parotitis epidemica)",1
+27,"Paratyphus",1
+30,"Pest",1
+31,"Invasieve pneumokokkenziekte",1
+32,"Psittacose (Ornithose)",1
+33,"Q-koorts",1
+34,"Rabies (Hondsdolheid)",1
+35,"Rubella (Rode Hond)",1
+36,"MERS-CoV",1
+37,"SARS",1
+38,"Shigellose",1
+39,"Pokken",1
+40,"Invasieve groep A-streptokokkeninfectie",1
+41,"Tetanus",1
+42,"Trichinose",1
+43,"Tularemia",1
+44,"Buiktyfus",1
+45,"West-Nilevirusinfectie",1
+46,"Kinkhoest (Pertussis)",1
+47,"Gele koorts",1
+48,"Zikavirusinfectie",1
+51,"Adenovirus",NA
+52,"Campylobacter",NA
+53,"COVID-19",NA
+54,"Hepatitis E",NA
+55,"Mpox",NA
+56,"Salmonellose",NA
+57,"Scabies",NA
+58,"Adenovirusinfectie",NA
+59,"Bartonella",NA
+60,"Chlamydia pneumoniae",NA
+61,"Clostridioides difficile",NA
+62,"Cryptosporidiose",NA
+63,"E. coli",NA
+64,"Pneumokokken",NA
+66,"Tekenencefalitis",NA

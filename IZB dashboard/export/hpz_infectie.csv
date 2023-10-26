@@ -1,0 +1,217 @@
+"inf_id","inf_naam","inf_groep"
+1,"Absidia infection",NA
+2,"Acanthamoeba infection",NA
+3,"Acinetobacter infection",NA
+4,"Acremonium infection",NA
+5,"Actinomyces infection",NA
+6,"Acute Poliomyelitis",1
+7,"Adenovirus Infection",58
+8,"Aeromonas infection",NA
+9,"Alternaria infection",NA
+10,"Amoebic Dysentery",NA
+11,"Anthrax",2
+12,"Arbovirus infection",NA
+13,"Aspergillosis",NA
+14,"Astrovirus Infection",NA
+15,"Atypical Mycobacterium Infection",11
+16,"Babesiosis",NA
+17,"Bacillus anthracis infection",2
+18,"Bacillus cereus infection",NA
+19,"Bartonella infection",59
+20,"Blastomyces infection",NA
+21,"Borrelia infection",NA
+22,"Botulism",4
+23,"Brucellosis",5
+24,"Burkholderia Mallei infection",NA
+25,"Burkholderia Pseudomallei infection",NA
+26,"Calicivirus infection, unspecified",NA
+27,"Campylobacteriosis",52
+28,"Candida infection",NA
+29,"Chagas disease",NA
+30,"Chikungunya",NA
+31,"Chlamydia infection",NA
+32,"Chlamydophila pneumoniae infection",60
+33,"Cholera",6
+34,"Ciguatera Toxin Poisoning",NA
+35,"Citrobacter infection",NA
+36,"Cladophialophora infection",NA
+37,"Clonorchis infection",NA
+38,"Clostridium difficile infection",61
+39,"Clostridium infection",NA
+40,"Clostridium perfringens infection",3
+41,"Clostridium perfringens intoxication",NA
+42,"Coccidiodes infection",NA
+43,"Coronavirus",53
+44,"Corynebacterium non-toxigenic infection",10
+45,"COVID-19",53
+46,"Cowpox",NA
+47,"Crimean-Congo haemorrhagic fever",9
+48,"Cryptococcus infection",NA
+49,"Cryptosporidiosis",62
+50,"Curvularia infection",NA
+51,"Cyclosporiasis",NA
+52,"Cytomegalovirus",NA
+53,"Dengue Fever",NA
+54,"Dermatophytosis",NA
+55,"Diphtheria",10
+56,"Diphyllobothrium infection",NA
+57,"Dracunculus infection",NA
+58,"E.coli infection",63
+59,"E.coli infection, ESBL",63
+60,"E.coli infection, VTEC",63
+61,"Ebola Haemorrhagic Fever",9
+62,"Echinococcosis",NA
+63,"Ehrlichiosis",NA
+64,"Enterobacter infection",NA
+65,"Enterobiasis",NA
+66,"Enterococcal infection",NA
+67,"Enterovirus infection",NA
+68,"Epstein-Barr infection",NA
+69,"Erysipelothrix infection",NA
+70,"Exophiala infection",NA
+71,"Fasciola infection",NA
+72,"Fifth Disease (Erythema infectiosum)",NA
+73,"Filaria infection",NA
+74,"Fusarium infection",NA
+75,"Giardiasis",NA
+76,"Gnathostoma infection",NA
+77,"Gonococcal infection",NA
+78,"Haemophilus influenzae (non-type B) infection",NA
+79,"Hantavirus infection",14
+80,"Hartmannella infection",NA
+81,"Hepatitis A",15
+82,"Hepatitis B",16
+83,"Hepatitis C",17
+84,"Hepatitis E",54
+85,"Herpes simplex infection",NA
+86,"Hib infection",NA
+87,"Histoplasma infection",NA
+88,"HIV infection",NA
+89,"Hookworm infection",NA
+90,"HPIV infection",NA
+91,"HTLV infection",NA
+92,"Hymenolepis infection",NA
+93,"iGAS (Invasive Group A Streptococcal) infection",40
+94,"Influenza A, Avian",18
+95,"Influenza A, Emergent",19
+96,"Influenza A, Seasonal",NA
+97,"Influenza A, Swine",19
+98,"Influenza B",NA
+99,"Influenza C",NA
+100,"Influenza, unspecified",NA
+101,"Klebsiella infection",NA
+102,"Lassa fever",9
+103,"Legionellosis",20
+104,"Leishmaniasis",NA
+105,"Leprosy",NA
+106,"Leptospirosis",21
+107,"Listeriosis",22
+108,"Lyme Disease",NA
+109,"Lymphocryptovirus",NA
+110,"Malaria",23
+111,"Marburg Haemorrhagic Fever",9
+112,"Measles",24
+113,"Meningococcal infection",25
+114,"MERS-CoV",36
+115,"Monkeypox",55
+116,"Moraxella catarrhalis infection",NA
+117,"Morganella infection",NA
+118,"Mumps",26
+119,"Mycobacterium infection, unspecified",11
+120,"Mycoplasma infection",NA
+121,"Naegleria infection",NA
+122,"Nocardia infection",NA
+123,"Norovirus Infection",NA
+124,"Papillomavirus infection",NA
+125,"Papovavirus",NA
+126,"Paracoccidioides infection",NA
+127,"Parainfluenza infection",NA
+128,"Parapoxvirus infection",NA
+129,"Paratyphoid Fever",27
+130,"Parvovirus B19 Infection",NA
+131,"Pasteurella infection",NA
+132,"Pediculosis",NA
+133,"Penicilliosis",NA
+134,"Pertussis (Whooping Cough)",46
+135,"Phthiriasis",NA
+136,"Pichia infection",NA
+137,"Plague",30
+138,"Plesiomonas infection",NA
+139,"Pneumococcal infection",64
+140,"Pneumocystis infection",NA
+141,"Poliovirus infection",1
+142,"Polyomavirus",NA
+143,"Pontiac Fever",NA
+144,"Prion disease",7
+145,"Proteus infection",NA
+146,"Providencia infection",NA
+147,"Pseudomonas infection",NA
+148,"Psittacosis",32
+149,"PVL-associated staphylococcal infection",NA
+150,"Q Fever",33
+151,"Rabies",34
+152,"Relapsing Fever",NA
+153,"Reovirus infection",NA
+154,"Respiratory syncytial viral infection",NA
+155,"Rhinovirus",NA
+156,"Rhizomucor infection",NA
+157,"Rhizopus infection",NA
+158,"Rhodotorula infection",NA
+159,"Rickettsia infection",NA
+160,"Rotavirus Infection",NA
+161,"Rubella",35
+162,"Saccharomyces infection",NA
+163,"Salmonella infection, unspecified",56
+164,"Salmonellosis",56
+165,"Sapovirus infection",NA
+166,"SARS",37
+167,"Scabies",57
+168,"Scarlet Fever",NA
+169,"Scedosporium infection",NA
+170,"Schistosoma infection",NA
+171,"Scombroid Toxin Poisoning",NA
+172,"Scopulariopsis infection",NA
+173,"Serratia infection",NA
+174,"Shigellosis (Bacillary Dysentery)",38
+175,"Sleeping sickness",NA
+176,"Smallpox",39
+177,"Sporothrix infection",NA
+178,"Spotted Fever",NA
+179,"Staphylococcal aureus infection, invasive",NA
+180,"Staphylococcal aureus infection, non-invasive or unspecified",NA
+181,"Staphylococcal infection, unspecified",NA
+182,"Staphylococcus aureus intoxication",NA
+183,"Stenotrophomonas maltophilia infection",NA
+184,"Streptobacillosis",NA
+185,"Streptococcal Group A infection, non-invasive or unspecified",NA
+186,"Streptococcal Group B infection",NA
+187,"Streptococcal Group C/G infection",NA
+188,"Streptococcal infection, unspecified",NA
+189,"Strongyloides infection",NA
+190,"Syphilis",NA
+191,"Taenia infection",NA
+192,"Tetanus",41
+193,"Tick-borne encephalitis",66
+194,"Toxic Effect",3
+195,"Toxocara infection",NA
+196,"Toxoplasmosis",NA
+197,"Trichinellosis",42
+198,"Trichomonas infection",NA
+199,"Trichosporon infection",NA
+200,"Trichuris infection",NA
+201,"Tuberculosis",11
+202,"Tularemia",43
+203,"Typhoid Fever",44
+204,"Typhus Fever",NA
+205,"Unidentifiable infection",NA
+206,"Unidentified infection",NA
+207,"Unlisted infection",NA
+208,"Varicella / Herpes Zoster",NA
+209,"Vibrio infection, non-Cholera",NA
+210,"Viral Haemorrhagic Fever",9
+211,"West Nile Virus infection",45
+212,"White Powder",NA
+213,"Yellow Fever",47
+214,"Yersinia infection, unspecified",NA
+215,"Yersiniosis",NA
+216,"Zikavirus infection",48

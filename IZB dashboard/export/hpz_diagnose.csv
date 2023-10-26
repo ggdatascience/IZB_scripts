@@ -1,0 +1,314 @@
+"dx_id","dx_naam","dx_groep"
+1,"Acanthamoebiasis",NA
+2,"Actinomycosis",NA
+3,"Acute Epiglottitis with obstruction",13
+4,"Acute poliomyelitis",1
+5,"Acute Retroviral Syndrom",NA
+6,"Adenoviral gastroenteritis",51
+7,"Adenoviral infection, other or unspecified",51
+8,"Adenoviral meningitis",51
+9,"AIDS",NA
+10,"Amoebic dysentery",NA
+11,"Anthrax",2
+12,"Arbovirus",NA
+13,"Aspergillosis",NA
+14,"Astroviral gastroenteritis",NA
+15,"Atypical mycobacterial infection, cutaneous",NA
+16,"Atypical mycobacterial infection, other",NA
+17,"Atypical mycobacterial infection, pulmonary",NA
+18,"Atypical mycobacterial infection, unspecified",NA
+19,"Awaiting Diagnosis",NA
+20,"Babesiosis",NA
+21,"Bacillus Cereus Intoxication",NA
+22,"Bacterial foodborne intoxication, unspecified",3
+23,"Bacterial meningitis, atypical",NA
+24,"Bacterial meningitis, unspecified",NA
+25,"Bacterial pneumonia, other",NA
+26,"Bartonellosis, systemic",NA
+27,"Blastomycosis",NA
+28,"Botulism",4
+29,"Brucellosis",5
+30,"Campylobacteriosis",52
+31,"Candidiasis",NA
+32,"Carrier",NA
+33,"Cellulitis",NA
+34,"Chagas disease",NA
+35,"Chikungunya",NA
+36,"Chlamydial conjunctivitis",NA
+37,"Chlamydial infection, unspecified",NA
+38,"Chlamydial pneumonia",NA
+39,"Cholera, classical",6
+40,"Cholera, El Tor",6
+41,"Cholera, unspecified",6
+42,"Ciguatera fish poisoning",3
+43,"Clonorchiasis",NA
+44,"Clostridium difficile associated disease (CDAD)",NA
+45,"Conjunctivitis",NA
+46,"Coronavirus infection",53
+47,"COVID-19",53
+48,"Creutzfeldt-Jakob disease, acquired",7
+49,"Creutzfeldt-Jakob disease, genetic",7
+50,"Creutzfeldt-Jakob disease, sporadic",7
+51,"Creutzfeldt-Jakob disease, unspecified",7
+52,"Crimean-Congo haemorrhagic fever",9
+53,"Cryptococcosis",NA
+54,"Cryptosporidiosis",NA
+55,"Cyclosporiasis",NA
+56,"Cytomegaloviral Disease",NA
+57,"Dengue Fever",NA
+58,"Dengue haemorrhagic fever",9
+59,"Dermatophytosis",NA
+60,"Diphtheria",10
+61,"Diphyllobothriasis",NA
+62,"Disseminated tuberculosis",11
+63,"Dracunculiasis",NA
+64,"E.coli infection, enteroaggregative (EAEC)",NA
+65,"E.coli infection, enteroinvasive (EIEC)",NA
+66,"E.coli infection, enteropathogenic (EPEC)",NA
+67,"E.coli infection, enterotoxigenic (ETEC)",NA
+68,"E.coli infection, other or unspecified",NA
+69,"E.coli infection, VTEC",12
+70,"E.coli infection, VTEC O157",12
+71,"E.coli pneumonia",NA
+72,"Ebola virus disease",9
+73,"Echinococcosis",NA
+74,"Encephalitis",NA
+75,"Endemic Typhus",NA
+76,"Endocarditis",NA
+77,"Enteric Fever",NA
+78,"Enterobiasis",NA
+79,"Enteroviral encephalitis",NA
+80,"Enteroviral meningitis",NA
+81,"Enterovirus infection, other or unspecified",NA
+82,"Epidemic Typhus",NA
+83,"Erysipelas",NA
+84,"Erysipeloid",NA
+85,"Erythema infectiosum (fifth disease)",NA
+86,"Eumycetoma",NA
+87,"Exanthema subitum (sixth disease)",NA
+88,"Fascioliasis",NA
+89,"Filariasis",NA
+90,"Foodborne Bacillus cereus intoxication",3
+91,"Foodborne Clostridium perfringens intoxication",3
+92,"Foodborne Staphylococcal intoxication",3
+93,"Foodborne Vibrio parahaemolyticus intoxication",3
+94,"Gastroenteritis, unspecified",NA
+95,"Giardiasis",NA
+96,"Gnathostomiasis",NA
+97,"Gonococcal conjunctivitis",NA
+98,"Haemolytic-uraemic syndrome (HUS)",NA
+99,"Haemophilus influenzae infection, specified",13
+100,"Haemophilus influenzae infection, unspecified",NA
+101,"Haemophilus meningitis",13
+102,"Haemophilus pneumonia",13
+103,"Haemophilus septicaemia",13
+104,"Hand, foot and mouth disease",NA
+105,"Hantavirus Haemorrhagic fever with renal syndrome",9
+106,"Hantavirus Nefritis",14
+107,"Hantavirus pulmonary syndrome (HPS)",14
+108,"Hepatitis A",15
+109,"Hepatitis B (with D), acute",16
+110,"Hepatitis B (with D), chronic",16
+111,"Hepatitis B, acute",16
+112,"Hepatitis B, carrier",NA
+113,"Hepatitis B, chronic",16
+114,"Hepatitis B, unspecified",16
+115,"Hepatitis C, acute",17
+116,"Hepatitis C, chronic",17
+117,"Hepatitis C, unspecified",17
+118,"Hepatitis E",54
+119,"Hepatitis, unspecified viral",NA
+120,"Herpes Labialis",NA
+121,"Herpesviral encephalitis",NA
+122,"Histoplasmosis",NA
+123,"HIV-infected",NA
+124,"Hookworm disease",NA
+125,"Hymenolepiasis",NA
+126,"Impetigo",NA
+127,"Infectious mononucleosis (Pfeiffer disease)",NA
+128,"Infestation",NA
+129,"Influenza or Flu-like illness",NA
+130,"Influenza, Avian",18
+131,"Influenza, emergent strain",NA
+132,"Influenza, other identified",NA
+133,"Influenza, Swine",19
+134,"Klebsiella pneumonia",NA
+135,"Lassa fever",9
+136,"Legionellosis, unspecified",NA
+137,"Legionnaires Disease",20
+138,"Leishmaniasis, cutaneous",NA
+139,"Leishmaniasis, mucocutaneous",NA
+140,"Leishmaniasis, unspecified",NA
+141,"Leishmaniasis, visceral",NA
+142,"Leprosy, borderline",NA
+143,"Leprosy, borderline lepromatous",NA
+144,"Leprosy, borderline tuberculoid",NA
+145,"Leprosy, indeterminate",NA
+146,"Leprosy, lepromatous",NA
+147,"Leprosy, other",NA
+148,"Leprosy, tuberculoid",NA
+149,"Leprosy, unspecified",NA
+150,"Leptospirosis, unspecified",21
+151,"Listerial meningitis",22
+152,"Listeriosis",22
+153,"Louse-borne relapsing fever",NA
+154,"Lyme disease",NA
+155,"Lymphocytic choriomeningitis",NA
+156,"Malaria, falciparum",23
+157,"Malaria, malariae",23
+158,"Malaria, ovale",23
+159,"Malaria, simian plasmodia",23
+160,"Malaria, unspecified",23
+161,"Malaria, vivax",23
+162,"Marburg virus disease",9
+163,"Measles",24
+164,"Meningitis, unspecified",NA
+165,"Meningitis, unspecified viral",NA
+166,"Meningococcaemia",25
+167,"Meningococcaemia, chronic",NA
+168,"Meningococcal infection, other",25
+169,"Meningococcal infection, unspecified",25
+170,"Meningococcal meningitis",25
+171,"Meningococcal pneumonia",25
+172,"Monkeypox",55
+173,"Mucormycosis",NA
+174,"Mumps",26
+175,"Mycoplasma pneumonia",NA
+176,"Myositis",NA
+177,"Naegleriasis",NA
+178,"Necrotizing fasciitis",NA
+179,"Neonatal chlamydial conjunctivitis",NA
+180,"Neonatal conjunctivitis, unspecified",NA
+181,"Neonatal gonococcal conjunctivitis",NA
+182,"Nocardiosis",NA
+183,"Noroviral gastroenteritis",NA
+184,"Orthopox",NA
+185,"Osteomyelitis",NA
+186,"Other sexually transmitted chlamydial diseases",NA
+187,"Paracoccidioidomycosis",NA
+188,"Parainfluenza",NA
+189,"Paratyphoid fever",NA
+190,"Paratyphoid fever A",27
+191,"Paratyphoid fever B",27
+192,"Paratyphoid fever C",27
+193,"Parvovirus infection",NA
+194,"Pasteurellosis",NA
+195,"Pediculosis due to Pediculus humanus capitis",NA
+196,"Pediculosis due to Pediculus humanus corporis",NA
+197,"Pediculosis, unspecified",NA
+198,"Peritonitis",NA
+199,"Pharyngitis",NA
+200,"Phthiriasis",NA
+201,"Plague",30
+202,"Pneumococcal arthritis or other invasive",31
+203,"Pneumococcal infection",NA
+204,"Pneumococcal meningitis",31
+205,"Pneumococcal pneumonia",NA
+206,"Pneumococcal pneumonia (invasive)",31
+207,"Pneumococcal septicaemia",31
+208,"Pneumocystosis",NA
+209,"Pneumonia",NA
+210,"Pontiac Fever",20
+211,"Prik/Besmettingsaccident",NA
+212,"Prion disease, unspecified",NA
+213,"Pseudomonas pneumonia",NA
+214,"Psittacosis",32
+215,"PVL-associated staphylococcal infection",NA
+216,"Q Fever",33
+217,"Rabies",34
+218,"Rash",NA
+219,"Relapsing fever, unspecified",NA
+220,"Respiratory syncytial virus infection",NA
+221,"Rheumatic fever",NA
+222,"Rotaviral gastroenteritis",NA
+223,"Rubella",35
+224,"Salmonellosis",56
+225,"Scabies",57
+226,"Scabiës crustosa",57
+227,"Scabiës, unspecified",57
+228,"Scarlet Fever",NA
+229,"Schistosomiasis",NA
+230,"Scombroid fish poisoning",3
+231,"Scrub Typhus",NA
+232,"Septic arthritis",NA
+233,"Septicaemia, unspecified",NA
+234,"Severe acute respiratory syndrome (MERS-CoV)",36
+235,"Severe acute respiratory syndrome (SARS)",37
+236,"Shigellosis",38
+237,"Shigellosis A (dysenteriae)",38
+238,"Shigellosis B (flexneri)",38
+239,"Shigellosis C (boydii)",38
+240,"Shigellosis D (sonnei)",38
+241,"Skin or Soft tissue infection",NA
+242,"Sleeping sickness",NA
+243,"Smallpox",39
+244,"Sporotrichosis",NA
+245,"Spotted fever",NA
+246,"Staphylococcal infection, unspecified",NA
+247,"Staphylococcal meningitis",NA
+248,"Staphylococcal pneumonia",NA
+249,"Staphylococcal scalded skin syndrome",NA
+250,"Staphylococcal toxic shock syndrome",NA
+251,"Staphylococcus aureus infection, specified",NA
+252,"Streptobacillosis",NA
+253,"Streptococcal Group A meningitis",40
+254,"Streptococcal Group A necrotizing fasciitis",40
+255,"Streptococcal Group A pneumonia",40
+256,"Streptococcal Group A puerperal sepsis",40
+257,"Streptococcal Group A septic arthritis",40
+258,"Streptococcal Group A septicaemia",40
+259,"Streptococcal Group A toxic shock syndrome",40
+260,"Streptococcal Group A, other invasive infection",40
+261,"Streptococcal Group B pneumonia",NA
+262,"Streptococcal infection, unspecified",NA
+263,"Streptococcal pharyngitis",NA
+264,"Streptococcal septicaemia",40
+265,"Strongyloidiasis",NA
+266,"Syphilis",NA
+267,"Taeniasis",NA
+268,"Tetanus",41
+269,"Tick-borne encephalitis, Central European",NA
+270,"Tick-borne relapsing fever",NA
+271,"Tick-borne viral encephalitis, atypical",NA
+272,"Toxic effect of arsenic",NA
+273,"Toxic effect of carbon monoxide",NA
+274,"Toxic effect of other specified substance(s)",NA
+275,"Toxic effect of seafood",NA
+276,"Toxic effect of unspecified substance",NA
+277,"Toxic shock syndrome",NA
+278,"Toxoplasmosis",NA
+279,"Trachoma",NA
+280,"Trichinellosis",42
+281,"Trichomoniasis",NA
+282,"Trichuriasis",NA
+283,"Tuberculosis",11
+284,"Tuberculosis, active respiratory",11
+285,"Tuberculosis, bone and joint",11
+286,"Tuberculosis, latent respiratory",11
+287,"Tuberculosis, menigeal",11
+288,"Tuberculosis, peripheral lymph node",11
+289,"Tularaemia",43
+290,"Typhoid fever",44
+291,"Typhus Fever",NA
+292,"Unclassified",NA
+293,"Unidentified",NA
+294,"Unidentified febrile illness",NA
+295,"Unidentified rash",NA
+296,"Unidentified respiratory illness",NA
+297,"Unspecified HIV disease",NA
+298,"Urinary tract infection",NA
+299,"Varicella (chickenpox)",NA
+300,"Vibrio infection, non-cholera",NA
+301,"Viral enteritis, other specified",NA
+302,"Viral haemorrhagic fever, unspecified",9
+303,"Viral meningitis, other",NA
+304,"Viral meningitis, unspecified",NA
+305,"West Nile virus infection",45
+306,"Whooping cough",46
+307,"Whooping cough, atypical",46
+308,"Whooping cough, parapertussis",46
+309,"Whooping cough, pertussis",46
+310,"Yellow Fever",47
+311,"Yersiniosis",NA
+312,"Zikavirus infection",48
+313,"Zoster",NA

@@ -1,0 +1,222 @@
+"ag_id","ag_naam","ag_infectie","ag_standaarddiagnose","ag_groep"
+1,"Absidia spp",1,173,NA
+2,"Acanthamoeba spp",2,1,NA
+3,"Acinetobacter spp",3,292,NA
+4,"Acremonium spp",4,86,NA
+5,"Actinomyces spp",5,2,NA
+6,"Adenovirus",7,6,51
+7,"Aeromonas spp",8,292,NA
+8,"Alternaria spp",9,292,NA
+9,"Arbovirus",12,12,NA
+10,"Arsenic",194,272,NA
+11,"Aspergillus spp",13,NA,NA
+12,"Astrovirus",14,NA,NA
+13,"Babesia spp",16,20,NA
+14,"Bacillus anthracis",11,NA,2
+15,"Bacillus cereus",18,21,NA
+16,"Bartonella spp",19,NA,NA
+17,"Blastomyces spp",20,27,NA
+18,"Body lice",132,196,NA
+19,"Bordetella spp",134,306,46
+20,"Borrelia burgdorferi",108,154,NA
+21,"Borrelia spp (not burgdorferi)",152,219,NA
+22,"Brucella spp",23,29,5
+23,"Burkholderia mallei",24,292,NA
+24,"Burkholderia pseudomallei",25,292,NA
+25,"Calicivirus, unspecified",NA,292,NA
+26,"Campylobacter spp",27,30,52
+27,"Candida spp",28,292,NA
+28,"Carbon Monoxide",194,273,NA
+29,"Chemical agent, other specified",194,274,NA
+30,"Chemical agent, unknown",194,276,NA
+31,"Chikungunya virus",30,35,NA
+32,"Chlamydia trachomatis",31,NA,NA
+33,"Chlamydophila pneumoniae",32,38,NA
+34,"Chlamydophila psittaci",148,214,32
+35,"Ciguatera Toxin",NA,292,NA
+36,"Citrobacter spp",35,292,NA
+37,"Cladophialophora spp",36,292,NA
+38,"Clonorchis spp",37,43,NA
+39,"Clostridium botulinum toxin",22,28,4
+40,"Clostridium difficile",38,NA,NA
+41,"Clostridium perfringens",40,91,3
+42,"Clostridium perfringens enterotoxin",NA,NA,NA
+43,"Clostridium spp, other/unspecified",39,292,NA
+44,"Clostridium tetani",192,268,41
+45,"Coccidiodes spp",42,292,NA
+46,"Coronavirus",NA,292,NA
+47,"Corynebacterium spp, non-toxigenic/unspecified",44,292,NA
+48,"Corynebacterium spp, toxigenic",55,60,10
+49,"COVID-19",45,47,53
+50,"Cowpox",46,184,NA
+51,"Coxiella burnetii",150,216,33
+52,"Crab louse",135,200,NA
+53,"Crimean-Congo haemorrhagic fever virus",47,52,9
+54,"Cryptococcus spp",48,292,NA
+55,"Cryptosporidium",49,54,NA
+56,"Curvularia spp",50,292,NA
+57,"Cyclospora spp",51,55,NA
+58,"Cytomegalovirus",52,56,NA
+59,"Dengue virus",53,NA,NA
+60,"Dermatophyte, unspecified genus",54,59,NA
+61,"Diphyllobothrium spp",56,61,NA
+62,"Dracunculus spp",57,63,NA
+63,"Ebola virus",61,72,9
+64,"Echinococcus spp",62,73,NA
+65,"Ehrlichia spp",63,292,NA
+66,"Entamoeba histolytica",10,10,NA
+67,"Enterobacter spp",64,292,NA
+68,"Enterococcus spp",66,292,NA
+69,"Enterovirus (Coxsackie / Echo)",NA,292,NA
+70,"Epidermophyton spp",54,59,NA
+71,"Epstein-Barr virus",68,127,NA
+72,"Erysipelothrix spp",69,84,NA
+73,"Escherichia coli O157",NA,NA,12
+74,"Escherichia coli, other/unspecified",58,NA,12
+75,"Escherichia spp, other/unspecified",NA,NA,12
+76,"Exophiala spp",70,292,NA
+77,"Fasciola spp",71,88,NA
+78,"Filaria spp",73,89,NA
+79,"Francisella tularensis",202,289,43
+80,"Fusarium spp",74,292,NA
+81,"Giardia",75,95,NA
+82,"Gnathostoma spp",76,96,NA
+83,"Gonococcus",77,292,NA
+84,"Haemophilus influenzae type B (Hib)",86,100,13
+85,"Haemophilus influenzae, other/unspecified",NA,292,NA
+86,"Hantavirus",79,107,14
+87,"Hartmannella spp",80,292,NA
+88,"Head louse",132,195,NA
+89,"Hepatitis A virus",81,NA,15
+90,"Hepatitis B virus",82,NA,16
+91,"Hepatitis C virus",83,NA,17
+92,"Hepatitis E virus",84,NA,54
+93,"Herpes simplex virus",85,120,NA
+94,"Histoplasma spp",87,292,NA
+95,"HIV",88,297,NA
+96,"Hookworm spp",89,124,NA
+97,"Human herpesvirus 6",NA,NA,NA
+98,"Human Papillomavirus (HPV)",NA,292,NA
+99,"Human T-lymphotropic virus (HTLV)",NA,292,NA
+100,"Hymenolepis spp",92,125,NA
+101,"Influenza A virus, Avian",94,NA,18
+102,"Influenza A virus, Emergent pandemic strain",95,NA,19
+103,"Influenza A virus, H1N1, Swine",97,NA,19
+104,"Influenza A virus, Seasonal",96,132,NA
+105,"Influenza B virus",98,132,NA
+106,"Influenza C virus",99,132,NA
+107,"Klebsiella spp",101,134,NA
+108,"Lassa virus",102,135,9
+109,"Legionella spp",103,137,20
+110,"Leishmania spp",104,140,NA
+111,"Leptospira spp",106,150,21
+112,"Listeria",107,152,22
+113,"Lymphocryptovirus",109,292,NA
+114,"Lymphocytic choriomeningitis virus (LCMV)",NA,NA,NA
+115,"Marburg virus",111,162,9
+116,"Measles virus",112,163,24
+117,"Meningococcus",113,169,25
+118,"Mercury",194,NA,NA
+119,"Microsporum spp",54,59,NA
+120,"Middle East Respiratory Syndrome Coronavirus",114,234,36
+121,"Monkeypox virus",115,172,55
+122,"Moraxella catarrhalis",116,NA,NA
+123,"Morganella",117,292,NA
+124,"Mumps virus",118,174,26
+125,"Mycobacterium leprae",105,149,NA
+126,"Mycobacterium spp, unspecified",NA,19,NA
+127,"Mycobacterium tuberculosis complex",201,283,11
+128,"Mycobacterium, atypical",15,292,NA
+129,"Mycoplasma pneumoniae",120,175,NA
+130,"Mycoplasma spp, other/unspecifed",NA,NA,NA
+131,"Naegleria spp",121,292,NA
+132,"Nocardia spp",122,292,NA
+133,"Norovirus",123,183,NA
+134,"Papovavirus",125,292,NA
+135,"Paracoccidioides spp",126,292,NA
+136,"Parainfluenza virus",127,188,NA
+137,"Parapoxvirus",128,292,NA
+138,"Parechovirus",NA,292,NA
+139,"Parvovirus B19",130,193,NA
+140,"Pasteurella spp",131,292,NA
+141,"Penicillium marneffii",133,292,NA
+142,"Pichia spp",136,292,NA
+143,"Plasmodium spp",110,NA,23
+144,"Plesiomonas spp",138,292,NA
+145,"Pneumococcus",139,292,NA
+146,"Pneumocystis spp",140,292,NA
+147,"Poliovirus",141,4,1
+148,"Polyomavirus",142,292,NA
+149,"Prion Protein",144,NA,7
+150,"Proteus",145,292,NA
+151,"Providencia spp",146,292,NA
+152,"Pseudomonas spp",147,292,NA
+153,"Rabies virus",151,217,34
+154,"Reovirus",153,292,NA
+155,"Respiratory syncytial virus (RSV)",154,220,NA
+156,"Rhinovirus spp",155,292,NA
+157,"Rhizomucor spp",156,292,NA
+158,"Rhizopus spp",157,292,NA
+159,"Rhodotorula spp",158,292,NA
+160,"Rickettsia spp (Spotted Fever)",178,245,NA
+161,"Rickettsia spp (Typhus Fever)",204,291,NA
+162,"Rickettsia spp, other/unspecified",159,292,NA
+163,"Rotavirus",160,222,NA
+164,"Rubella virus",161,223,35
+165,"Saccharomyces spp",162,292,NA
+166,"Salmonella Paratyphi",129,189,27
+167,"Salmonella spp, non-typhoidal or unspecified",164,NA,56
+168,"Salmonella spp, unspecified",163,NA,56
+169,"Salmonella Typhi",203,290,44
+170,"Sapovirus",165,NA,NA
+171,"SARS Coronavirus",166,235,37
+172,"Scabies mite",167,225,57
+173,"Scedosporium spp",169,292,NA
+174,"Schistosoma spp",170,229,NA
+175,"Scombroid Toxin",194,230,3
+176,"Scopulariopsis spp",172,292,NA
+177,"Serratia spp",173,292,NA
+178,"Shigella spp",174,236,38
+179,"Sporothrix spp",177,292,NA
+180,"Staphylococcus aureus, MRSA",181,NA,NA
+181,"Staphylococcus aureus, MSSA",181,246,NA
+182,"Staphylococcus aureus, other/unspecified",180,NA,NA
+183,"Staphylococcus enterotoxin",182,NA,NA
+184,"Staphylococcus spp, other/unspecified",181,246,NA
+185,"Stenotrophomonas maltophilia",183,292,NA
+186,"Streptobacillus moniliformis",184,252,NA
+187,"Streptococcus, Group A",NA,262,40
+188,"Streptococcus, Group B",NA,292,NA
+189,"Streptococcus, Group C/G",NA,292,NA
+190,"Streptococcus, Group D",NA,NA,NA
+191,"Streptococcus, other/unspecified",188,292,NA
+192,"Streptococcus, Viridans Group",NA,NA,NA
+193,"Strongyloides spp",189,265,NA
+194,"Taenia spp",191,267,NA
+195,"Threadworm",65,78,NA
+196,"Tick-borne encephalitis virus",193,269,NA
+197,"Toxic substance, other specified",194,274,NA
+198,"Toxocara spp",195,292,NA
+199,"Toxoplasma spp",196,278,NA
+200,"Treponema pallidum",190,266,NA
+201,"Treponema spp, other/unspecified",NA,NA,NA
+202,"Trichinella",197,280,42
+203,"Trichomonas spp",198,292,NA
+204,"Trichophyton spp",54,59,NA
+205,"Trichosporon spp",199,292,NA
+206,"Trichuris spp",200,282,NA
+207,"Trypanosoma bruci spp",175,242,NA
+208,"Trypanosoma cruzi",29,34,NA
+209,"Unavailable",206,292,NA
+210,"Unidentifiable",205,292,NA
+211,"Unlisted",207,NA,NA
+212,"Varicella-zoster virus",208,NA,NA
+213,"Variola virus",176,243,39
+214,"Vibrio cholerae O1/O139",33,41,6
+215,"Vibrio spp, non-Choleric/unspecified",NA,292,NA
+216,"West Nile virus",211,305,45
+217,"Yellow fever virus",213,310,47
+218,"Yersinia enterocolitica",215,311,NA
+219,"Yersinia pestis",137,201,30
+220,"Yersinia spp, other/unspecified",214,311,NA
+221,"Zikavirus",216,312,48
