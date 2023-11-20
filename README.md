@@ -22,3 +22,4 @@ In navolging van de kaartjes die met kaarten_IZB.R kunnen worden gemaakt gingen 
 
 ## vaccinatiegraad.R
 Er wordt regelmatig gevraagd om grafieken van de vaccinatiegraad in een bepaalde gemeente of van een bepaalde vaccinatie. Dit script maakt een hele stapel grafieken (per gemeente, per type, kaartjes, enz.) voor algemeen gebruik.
+![afbeelding](https://github.com/ggdatascience/IZB_scripts/assets/125073330/08c6eba7-f6da-4ee4-b321-35a1efc1eb1c)
