@@ -20,3 +20,5 @@ Voor het overzicht van de regio is het soms handiger om kaarten te maken met een
 In navolging van de kaartjes die met kaarten_IZB.R kunnen worden gemaakt gingen we veel meer kaarten maken. Hierbij bleek een interactieve versie veel praktischer; het aantal bedrijven in één GGD-regio is bijvoorbeeld niet goed weer te geven op een statische kaart. Dit script maakt een interactieve (zoombaar, klikbaar) kaart van een fiks aantal databronnen, waaronder koeltorens, zorgkosten, zorgverleners, agrarische bedrijven, enz. Deze zijn over elkaar heen te leggen indien gewenst. Verder kan op een marker geklikt worden voor meer informatie.
 ![afbeelding](https://github.com/ggdatascience/IZB_scripts/assets/125073330/08f73eaa-48db-4ace-abc3-f7c884635d0b)
 
+## vaccinatiegraad.R
+Er wordt regelmatig gevraagd om grafieken van de vaccinatiegraad in een bepaalde gemeente of van een bepaalde vaccinatie. Dit script maakt een hele stapel grafieken (per gemeente, per type, kaartjes, enz.) voor algemeen gebruik.
