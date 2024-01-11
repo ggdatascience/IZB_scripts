@@ -6,15 +6,27 @@
 # Gebruik is simpel:                                                           #
 # - Exporteer de cases, situations en enquiries van het afgelopen jaar vanuit  #
 #   HPZone met de opties 'All core values' en 'Excel' aangevinkt.              #
-# - Plaats de drie bestanden in dezelfde map als dit bestand.                  #
+# - Plaats de drie bestanden in dezelfde map als dit bestand, of de opgegeven  #
+#   datamap.                                                                   #
 # - Voer dit bestand uit.                                                      #
-# - Kopiëer de resulterende CSV-bestanden naar de gewenste locatie.            #
 # - Verwijder, indien gewenst, de originele Excelbestanden.                    #
 ################################################################################
 
 # configuratiemogelijkheden
 # wel of niet de Excelbestanden verwijderen na afloop? (T voor ja, F voor nee)
-bestanden_verwijderen_na_afloop = F
+bestanden_verwijderen_na_afloop = T
+# map waar de bestanden in staan - "./" is de map waarin het script zich bevindt
+# "../data" betekent één map omhoog en dan de map data
+# LET OP: Windows werkt met een backward slash (C:\Gebruikers\Blabla), in R moet dit ofwel een forward slash zijn (C:/Gebruikers/Blabla)
+# of verdubbeld worden (C:\\Gebruikers\\Blabla)
+datamap = "./"
+# map waar de bestanden geplaatst moeten worden
+# LET OP: slash vs. backslash, gelijk aan opmerking hierboven
+# zet op NA voor uitvoer in datamap
+uitvoermap = "\\\\az-data1.ssc.local\\Apl_data\\DWH_Data\\Import\\NOG_HPZone\\"
+
+
+## begin script
 
 # benodigde packages installeren/laden
 pkg_req = c("tidyverse", "this.path", "readxl")
@@ -29,13 +41,18 @@ library(tidyverse)
 library(this.path)
 library(readxl)
 
-setwd(dirname(this.path()))
+setwd(paste0(dirname(this.path()), datamap))
 
 printf = function (...) cat(paste(sprintf(...),"\n"))
+
+if (!is.na(uitvoermap) && !str_ends(uitvoermap, "\\\\") && !str_ends(uitvoermap, "/")) {
+  uitvoermap = paste0(uitvoermap, "/")
+}
 
 # doorlopen bestanden in de datamap
 files = list.files("./", pattern=".*?\\.xlsx")
 handled_files = c()
+output_files = c()
 
 for (file in files) {
   printf("Verwerking bestand %d: %s", which(files == file), file)
@@ -84,12 +101,12 @@ for (file in files) {
     # sanity checks
     printf("Er zijn %d casussen waarbij de eerste ziektedag na de meldingsdatum valt. Dit zijn HPZone ID's %s.",
            sum(data$`Date of Onset` > data$`Datum melding aan de GGD`, na.rm=T), str_c(data$`Case Number`[which(data$`Date of Onset` > data$`Datum melding aan de GGD`)], collapse=", "))
-    printf("Er zijn %d casussen met gekke meldingsdata (<= jaar databestand of > nu). Dit zijn HPZone ID's %s.",
-           sum(data$`Datum melding aan de GGD` < jaar | data$`Datum melding aan de GGD` > Sys.Date(), na.rm=T),
-           str_c(data$`Case Number`[which(data$`Datum melding aan de GGD` < jaar | data$`Datum melding aan de GGD` > Sys.Date())], collapse=", "))
+    printf("Er zijn %d casussen met gekke meldingsdata (> nu). Dit zijn HPZone ID's %s.",
+           sum(data$`Datum melding aan de GGD` > Sys.Date(), na.rm=T),
+           str_c(data$`Case Number`[which(data$`Datum melding aan de GGD` > Sys.Date())], collapse=", "))
     printf("Er zijn %d casussen met gekke EZD's (<= eerste melding of > nu). Dit zijn HPZone ID's %s.",
-           sum(data$`Date of Onset` < jaar | data$`Date of Onset` > Sys.Date(), na.rm=T),
-           str_c(data$`Case Number`[which(data$`Date of Onset` < jaar | data$`Date of Onset` > Sys.Date())], collapse=", "))
+           sum(data$`Date of Onset` < startdatum | data$`Date of Onset` > Sys.Date(), na.rm=T),
+           str_c(data$`Case Number`[which(data$`Date of Onset` < startdatum | data$`Date of Onset` > Sys.Date())], collapse=", "))
     printf("Er zijn %d casussen zonder melddatum. Invoerdatum aagenomen als melddatum. Dit zijn HPZone ID's %s.",
            sum(is.na(data$`Datum melding aan de GGD`), na.rm=T),
            str_c(data$`Case Number`[which(is.na(data$`Datum melding aan de GGD`))], collapse=", "))
@@ -106,7 +123,6 @@ for (file in files) {
     printf("Let op! Al deze gevallen worden alsnog geïmporteerd. Controleer de gegevens in HPZone en voer na correctie een nieuwe export in via dit script.")
     
     data$`Principal Contextual Setting`[is.na(data$`Principal Contextual Setting`)] = "Onbekend"
-    data$Hospitalised[is.na(data$Hospitalised)] = "No"
     data$`Datum gefiatteerd in Osiris`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)] = data$`Time entered`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)]
     data$`Status van de melding`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Status van de melding`)] = "Gefiatteerd"
     
@@ -121,9 +137,10 @@ for (file in files) {
                                 Gender == "Male" ~ "M",
                                 TRUE ~ "U"),
              PC=str_match(ifelse(!is.na(Postcode), Postcode, `Post District`), "\\d+")[,1],
-             ziekenhuisopname=ifelse(Hospitalised == "Yes", 1, 0),
+             ziekenhuisopname=case_when(Hospitalised == "Yes" ~ 1,
+                                        Hospitalised == "No" ~ 0),
              gemeld=case_when(!is.na(`Datum gefiatteerd in Osiris`) ~ `Datum gefiatteerd in Osiris`,
-                              !is.na(`Datum definitief in Osiris`) ~ `Datum gefiatteerd in Osiris`)) %>%
+                              !is.na(`Datum definitief in Osiris`) ~ `Datum definitief in Osiris`)) %>%
       rename(hpzone_id="Case Number", meldorganisatie="Oorspronkelijke bron van de melding",
              leeftijd="Age in Years (at date of onset)", agent="Agent", infectie="Infection",
              diagnose="Diagnosis", diagnosezekerheid="Confidence", antibioticaresistentie="ABR",
@@ -137,8 +154,9 @@ for (file in files) {
              medewerker, casemanager) %>%
       rename(postcode=PC)
     
-    write.csv(data, sprintf("export_cases_%s.csv", startdatum))
+    write.csv(data, sprintf("export_cases_%s.csv", startdatum), na="", row.names=F)
     handled_files = c(handled_files, file)
+    output_files = c(output_files, sprintf("export_cases_%s.csv", startdatum))
     
     printf("Bestand opgeslagen als export_cases_%s.csv.", startdatum)
   } else if ("Time entered" %in% colnames(data) && "Identification Number (Internal)" %in% colnames(data)) {
@@ -171,8 +189,9 @@ for (file in files) {
              aantal_symptomatisch, aantal_risico, aantal_ziekenhuis, aantal_overleden) %>%
       rename(postcode=PC)
     
-    write.csv(data, sprintf("export_situations_%s.csv", startdatum))
+    write.csv(data, sprintf("export_situations_%s.csv", startdatum), na="", row.names=F)
     handled_files = c(handled_files, file)
+    output_files = c(output_files, sprintf("export_situations_%s.csv", startdatum))
     
     printf("Bestand opgeslagen als export_situations_%s.csv.", startdatum)
   } else if ("Number" %in% colnames(data) && "Received on" %in% colnames(data)) {
@@ -199,8 +218,9 @@ for (file in files) {
              typebeller, categorie, onderwerp, onderwerpopen) %>%
       rename(postcode=PC)
     
-    write.csv(data, sprintf("export_enquiries_%s.csv", startdatum))
+    write.csv(data, sprintf("export_enquiries_%s.csv", startdatum), na="", row.names=F)
     handled_files = c(handled_files, file)
+    output_files = c(output_files, sprintf("export_enquiries_%s.csv", startdatum))
     
     printf("Bestand opgeslagen als export_enquiries_%s.csv.", startdatum)
   } else {
@@ -213,3 +233,9 @@ if (length(handled_files) > 0 && bestanden_verwijderen_na_afloop) {
   printf("De volgende bestanden zijn verwijderd na verwerking: %s", str_c(handled_files, collapse=", "))
 }
 
+if (!is.na(uitvoermap)) {
+  for (f in output_files) {
+    file.rename(f, paste0(uitvoermap, f))
+  }
+  printf("Bestanden verplaatst naar %s.", uitvoermap)
+}
