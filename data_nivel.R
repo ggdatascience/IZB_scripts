@@ -33,7 +33,7 @@ h3 = h3[!is.na(h3)]
 # nu zoeken we de <a> met GGD in de href
 links = xml_find_all(page, paste0(xml_path(h3[[1]]), "/../../ol/li/a[contains(@href,'GGD')]"))
 datafiles = bind_rows(lapply(links, function (el) {
-  periode = str_match(xml_text(el), "(\\d{4}).*(\\d{2})")
+  periode = str_match(xml_text(el), "(\d{4}).*wk(\d+)")
   return(data.frame(jaar=as.numeric(periode[,2]), week=as.numeric(periode[,3]), link=xml_attr(el, "href")))
 })) %>% arrange(jaar, week)
 
