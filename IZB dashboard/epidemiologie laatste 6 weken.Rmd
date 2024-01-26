@@ -51,9 +51,9 @@ printf = function (...) cat(paste(sprintf(...),"\n"))
 nog_colors = c("#1D1756", "#D1005D", "#2F6594", "#D3DFF1", "#FFBDDB")
 nog_palette = c("#FAE6EF","#F6CCDF","#ED99BE","#E3669E","#D1005D")
 
-kaartdata = st_read("../../../Documenten - NOG NOG W Openbare data/Kaarten/pc4_arcgis.shp")
+kaartdata = st_read("../../../Documenten - NOG W Openbare data/Kaarten/pc4_arcgis.shp")
 
-conn = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0\\odbnog", uid="HPZone", pwd="%16IZB01d7@", Database="HPZone")
+conn = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0\\odbnog", Database="HPZone")
 
 freq.table = function (..., is.list=F, is.table=F, row.prop=T, col.prop=T) {
   if (is.table) {
@@ -150,6 +150,28 @@ freq.table = function (..., is.list=F, is.table=F, row.prop=T, col.prop=T) {
 ```{r}
 startdatum = floor_date(Sys.Date() - dweeks(6), unit="week")
 printf("Begindatum: %s (week %d)", startdatum, week(startdatum))
+
+# omdat data van het Nivel en de virologische weekstaten per week gaat moeten we soms omrekenen; in week 2 moeten de laatste 4 weken van vorig jaar ook hebben
+startweek1 = week(startdatum)
+startjaar1 = year(startdatum)
+startweek2 = week(startdatum)
+startjaar2 = year(startdatum)
+if (startjaar1 < year(Sys.Date())) {
+  startweek2 = 1
+  startjaar2 = year(Sys.Date())
+}
+```
+
+# Inladen virologische weekstaten
+```{sql connection=conn, output.var="vir_weekstaat"}
+SELECT * FROM vw_vir_weekstaat
+WHERE (jaar = ?startjaar1 AND week >= ?startweek1)
+  OR (jaar = ?startjaar2 AND week >= ?startweek2)
+ORDER BY jaar, week ASC
+```
+
+```{r}
+vir_weekstaat = vir_weekstaat %>% mutate(label=sprintf("%d-%d", jaar, week))
 ```
 
 
@@ -186,22 +208,13 @@ beginjaar = year(startdatum) - 5
 
 ```{sql connection=conn, output.var="cases.historisch"}
 SELECT YEAR(peildatum) as jaar, MONTH(peildatum) AS maand, groep, COUNT(hpzone_id) AS n FROM vw_cases
-WHERE infectie_groep IN (?infecties_sql) AND YEAR(peildatum) >= ?beginjaar AND diagnosezekerheid != 'Discarded'
+WHERE groep IN (?infecties_sql) AND YEAR(peildatum) >= ?beginjaar AND diagnosezekerheid != 'Discarded'
 GROUP BY YEAR(peildatum), MONTH(peildatum), groep
 ```
 
 ```{r results="asis"}
 for (inf in infecties) {
   cat("### ", inf, "\n")
-  cat("#### Leeftijd en geslacht\n")
-  print(ggplot(cases %>% filter(groep == inf), aes(x=leeftijd, fill=geslacht)) +
-    geom_bar() +
-    labs(x="Leeftijd", y="Aantal", fill="Geslacht", title="Demografie patienten ", subtitle=inf))
-  cat("\n\nLeeftijd:\n")
-  print(xtable(t(summary(cases$leeftijd[which(cases$groep == inf)]))))
-  cat("\nGeslacht:\n")
-  print(xtable(freq.table(cases$geslacht[which(cases$groep == inf)])))
-  cat("\n\n")
   cat("#### Verloop meldingen afgelopen tijd\n")
   print(ggplot(cases %>% filter(groep == inf), aes(x=peildatum, fill=diagnosezekerheid)) +
     geom_bar() +
@@ -216,11 +229,41 @@ for (inf in infecties) {
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13)))
   cat("\n")
   print(xtable(cases.historisch %>% filter(groep == inf) %>% group_by(jaar) %>% summarize(n=sum(n))))
+  cat("\n")
+  cat("#### Leeftijd en geslacht\n")
+  cat("<details><summary>Grafiek</summary>")
+  print(ggplot(cases %>% filter(groep == inf), aes(x=leeftijd, fill=geslacht)) +
+    geom_bar() +
+    labs(x="Leeftijd", y="Aantal", fill="Geslacht", title="Demografie patienten ", subtitle=inf))
+  cat("</details>\n")
+  cat("<details><summary>Tabel</summary>")
+  cat("\n\nLeeftijd:\n")
+  print(xtable(t(summary(cases$leeftijd[which(cases$groep == inf)]))))
+  cat("\nGeslacht:\n")
+  print(xtable(freq.table(cases$geslacht[which(cases$groep == inf)])))
+  cat("</details>\n")
+  cat("\n")
+  cat("#### Virologische weekstaat\n")
+  if (sum(vir_weekstaat$n[vir_weekstaat$groep == inf], na.rm=T) > 0) {
+    cat("<details><summary>Grafiek</summary>")
+    print(ggplot(vir_weekstaat %>% filter(groep == inf), aes(x=label, group=groep)) +
+      geom_line(aes(y=n, col="Aantal meldingen")) +
+      geom_line(aes(y=nlabs, col="Aantal laboratoria")) +
+      scale_color_manual(name="", values=c("Aantal meldingen"=nog_colors[1], "Aantal laboratoria"=nog_colors[2])) +
+      labs(x="Week", y="Aantal", title="Aantal positieve testen in laboratoria in de laatste 6 weken", subtitle=inf))
+    cat("</details>\n")
+  } else {
+    cat("Geen data gevonden voor deze verwekker.")
+  }
   cat("\n\n")
 }
 ```
 
 ## Context en demografie
+```{r}
+datatable(freq.table(cases$groep, cases$context))
+```
+
 ```{r fig.width=10}
 ggplot(cases, aes(x=leeftijd, fill=geslacht)) +
   geom_bar() +
@@ -284,6 +327,7 @@ for (ag in agents) {
     geom_col(aes(fill=factor(jaar)), position="dodge") +
     labs(title=ag, x="Maand", y="Aantal", fill="Jaar") +
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13))))
+  cat("\n\n")
 }
 ```
 
@@ -339,6 +383,7 @@ for (ond in onderwerpen) {
     geom_col(aes(fill=factor(jaar)), position="dodge") +
     labs(title=ond, x="Maand", y="Aantal", fill="Jaar") +
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13))))
+  cat("\n\n")
 }
 ```
 
@@ -426,21 +471,29 @@ kaart %>%
   addLayersControl(overlayGroups=agents)
 ```
 
+# Virologische weekstaten
+```{r}
+ggplotly(ggplot(vir_weekstaat, aes(x=label, y=n, color=virus, group=virus)) +
+           geom_line() +
+           labs(title="Aantal positieve testen in de laatste 6 weken", x="Week", y="Aantal"))
+```
+
+```{r fig.width=9, fig.height=16}
+verschildata = vir_weekstaat %>%
+  group_by(virus) %>%
+  mutate(verschil=n-lag(n),
+         verschil_rel=verschil/n*100)
+ggplotly(ggplot(verschildata %>% filter(!is.na(verschil)), aes(x=label, y=virus, fill=verschil_rel, label=verschil)) +
+  geom_tile() +
+  geom_text() +
+  scale_fill_gradient2(low="darkblue", mid="white", high="red", midpoint=0) +
+  labs(x="Week", y="Virus", title="Relatief verschil virologische weekstaat met voorgaande week", fill="Verschil (%)"))
+```
+
+
 # Data Nivel peilstations
 ```{r echo=F}
 conn.nivel = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0\\odbnog", Database="ODBNOG")
-```
-
-```{r}
-# omdat data van het Nivel per week gaat moeten we soms omrekenen; in week 2 moeten de laatste 4 weken van vorig jaar ook hebben
-startweek1 = week(startdatum)
-startjaar1 = year(startdatum)
-startweek2 = week(startdatum)
-startjaar2 = year(startdatum)
-if (startjaar1 < year(Sys.Date())) {
-  startweek2 = 1
-  startjaar2 = year(Sys.Date())
-}
 ```
 
 ```{sql connection=conn.nivel, output.var="niveldata"}
