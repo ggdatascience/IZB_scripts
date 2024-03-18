@@ -111,7 +111,19 @@ files = list.files("./data/", pattern=".*?\\.xlsx")
 
 for (file in files) {
   printf("Verwerking bestand %d: %s", which(files == file), file)
-  data = read_excel(paste0("./data/", file))
+  # enquiries worden soms gek geëxporteerd, waardoor R ze niet kan openen
+  # er wordt dan geklaagd over iets van een unicodekarater
+  # openen en opslaan in Excel lost dit op, maar is irritant; automatiseren!
+  tryCatch({ data = read_excel(paste0("./data/", file)) }, error=function(e) { 
+    if (str_detect(e$message, "Unicode")) {
+      filename = paste0(dirname(this.path()), "/data/", file) %>%
+        str_replace_all(fixed("/"), "\\") # het omzetscript wil een pad met \, R geeft /
+      system(sprintf("excelsave.bat \"%s\" ", filename))
+      data = read_excel(paste0("./data/", file))
+    }
+    else
+      print(e)
+  })
   
   # om te controleren of er geen gekke data aanwezig is willen we weten of 
   # data in dit bestand voor hun invoerdatum zijn (dat kan, muv HepB, niet)
@@ -170,6 +182,11 @@ for (file in files) {
     data$Diagnosis = str_replace(data$Diagnosis, "Malaria$", "Malaria, unspecified")
     # of dit?
     data$Diagnosis = str_replace(data$Diagnosis, "(Avian) (Influenza)", "\\2, \\1")
+    
+    # wat blijkt... dit gebeurt ook met infecties
+    # waarom zijn we niet verbaasd?
+    # "Group A Streptococcal infection (non-invasive)" "Streptococcal Group A infection, non-invasive"  "Streptococcal Infection: Group A" --> Streptococcal Group A infection, non-invasive or unspecified
+    data$Infection = str_replace(data$Infection, "Group A Streptococcal infection \\(non-invasive\\)|Streptococcal Group A infection, non-invasive|treptococcal Infection: Group A", "Streptococcal Group A infection, non-invasive or unspecified")
     
     # nu de casuistiek importeren
     # het is makkelijker om eerst alle IDs te combineren

@@ -56,6 +56,19 @@ output_files = c()
 
 for (file in files) {
   printf("Verwerking bestand %d: %s", which(files == file), file)
+  # enquiries worden soms gek geëxporteerd, waardoor R ze niet kan openen
+  # er wordt dan geklaagd over iets van een unicodekarater
+  # openen en opslaan in Excel lost dit op, maar is irritant; automatiseren!
+  tryCatch({ data = read_excel(file) }, error=function(e) { 
+    if (str_detect(e$message, "Unicode")) {
+      filename = paste0(dirname(this.path()), "/", file) %>%
+        str_replace_all(fixed("/"), "\\") # het omzetscript wil een pad met \, R geeft /
+      system(sprintf("excelsave.bat \"%s\" ", filename))
+      data = read_excel(paste0("./", file))
+    }
+    else
+      print(e)
+  })
   data = read_excel(file)
   
   # om te controleren of er geen gekke data aanwezig is willen we weten of 
@@ -92,6 +105,12 @@ for (file in files) {
     data$Diagnosis = str_replace(data$Diagnosis, "Malaria$", "Malaria, unspecified")
     # of dit?
     data$Diagnosis = str_replace(data$Diagnosis, "(Avian) (Influenza)", "\\2, \\1")
+    
+    # wat blijkt... dit gebeurt ook met infecties
+    # waarom zijn we niet verbaasd?
+    # "Group A Streptococcal infection (non-invasive)" "Streptococcal Group A infection, non-invasive"  "Streptococcal Infection: Group A" --> Streptococcal Group A infection, non-invasive or unspecified
+    data$Infection = str_replace(data$Infection, "Group A Streptococcal infection \\(non-invasive\\)|Streptococcal Group A infection, non-invasive|treptococcal Infection: Group A", "Streptococcal Group A infection, non-invasive or unspecified")
+    
     
     # de melddatum in OSIRIS staat in verschillende velden; samenvoegen voor duidelijkheid
     data = data %>%
@@ -237,5 +256,5 @@ if (!is.na(uitvoermap)) {
   for (f in output_files) {
     file.rename(f, paste0(uitvoermap, f))
   }
-  printf("Bestanden verplaatst naar %s.", uitvoermap)
+  printf("Bestanden verplaatst naar %s: %s.", uitvoermap, str_c(output_files, collapse=", "))
 }
