@@ -102,8 +102,8 @@ if (F) {
 }
 
 NullOrQuotes = function (val) {
-  return(case_when(is.na(val) ~ "NULL",
-                   TRUE ~ paste0("'", val, "'")))
+  return(case_when(is.na(val) | is.null(val) ~ "NULL",
+                   TRUE ~ paste0("'", str_replace_all(val, fixed("'"), "''"), "'")))
 }
 
 # doorlopen bestanden in de datamap
@@ -200,6 +200,7 @@ for (file in files) {
       left_join(medewerkers.db, by=c("Investigating Officer"="mdw_naam")) %>%
       mutate(Geslacht=case_when(Gender == "Female" ~ "F",
                                 Gender == "Male" ~ "M",
+                                Gender == "Other" ~ "X",
                                 TRUE ~ "U"), # wellicht ooit nog een anders toevoegen?
              PC=str_match(ifelse(!is.na(Postcode), Postcode, `Post District`), "\\d+")[,1],
              Datum.OSIRIS=case_when(!is.na(`Datum gefiatteerd in Osiris`) ~ `Datum gefiatteerd in Osiris`,
@@ -236,12 +237,15 @@ for (file in files) {
            sum(!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)), str_c(data$`Case Number`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)], collapse=", "))
     printf("Er zijn %d casussen waarbij wel een meldingsnummer is aangemaakt, maar geen status van de melding is opgegeven. Dit zijn HPZone ID's %s. Status wordt aangenomen als 'Gefiatteerd'.",
            sum(!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Status van de melding`)), str_c(data$`Case Number`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Status van de melding`)], collapse=", "))
+    printf("Er zijn %d casussen waarbij wel een vaccinatiedatum is opgegeven, maar geen of negatieve vaccinatiestatus. Dit zijn HPZone ID's %s.",
+           sum((is.na(data$`Vaccinated in respect to the diagnosis`) | data$`Vaccinated in respect to the diagnosis` == "Nee") & !is.na(data$`Vaccination Date (if relevant)`), na.rm=T), str_c(data$`Case Number`[which((is.na(data$`Vaccinated in respect to the diagnosis`) | data$`Vaccinated in respect to the diagnosis` == "Nee") & !is.na(data$`Vaccination Date (if relevant)`))], collapse=", "))
     printf("Let op! Al deze gevallen worden alsnog geïmporteerd. Controleer de gegevens in HPZone en voer na correctie een nieuwe export in via dit script.")
     
     data$ctx_id[is.na(data$ctx_id)] = context.db$ctx_id[context.db$ctx_naam == "Onbekend"]
     data$Hospitalised[is.na(data$Hospitalised)] = "No"
     data$`Datum gefiatteerd in Osiris`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)] = data$`Time entered`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)]
     data$`Status van de melding`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Status van de melding`)] = "Gefiatteerd"
+    data$`Vaccinated in respect to the diagnosis`[!is.na(data$`Vaccination Date (if relevant)`) & (is.na(data$`Vaccinated in respect to the diagnosis`) | data$`Vaccinated in respect to the diagnosis` == "Nee")] = "Ja"
     
     # het kan zijn dat een bepaald geval al voorkomt in de database, in dat geval moeten we updaten
     # dit breken we op in lijsten van 500, zodat de database niet helemaal hoeft te huilen
@@ -255,12 +259,14 @@ for (file in files) {
       data.existing = data[data$`Case Number` %in% existing,]
       update = sprintf("UPDATE [dbo].[casus]
              SET peildatum='%s', melddatum='%s', meldorganisatie=%s, geslacht='%s', leeftijd=%s, postcode=%s, agent=%s, infectie=%s, diagnose=%d, diagnosezekerheid=%s,
-             buitenland=%s, eersteziektedag=%s, context=%d, ziekenhuisopname=%d, overlijden=%s, gemeld=%s, statusmelding=%s, medewerker=%s, casemanager=%s, antibioticaresistentie=%s, updated=GETDATE()
+             buitenland=%s, eersteziektedag=%s, context=%d, ziekenhuisopname=%d, overlijden=%s, vaccinatie=%s, vaccinatiedatum=%s, gemeld=%s, statusmelding=%s, medewerker=%s,
+             casemanager=%s, antibioticaresistentie=%s, updated=GETDATE()
              WHERE hpzone_id=%s", data.existing$Peildatum, data.existing$Melddatum, dbQuoteString(conn, data.existing$`Oorspronkelijke bron van de melding`),
                        data.existing$Geslacht, NullOrQuotes(data.existing$`Age in Years (at date of onset)`), NullOrQuotes(data.existing$PC), NullOrQuotes(data.existing$ag_id), NullOrQuotes(data.existing$inf_id),
                        data.existing$dx_id, dbQuoteString(conn, data.existing$Confidence), NullOrQuotes(data.existing$`Recent travel to another country`), NullOrQuotes(data.existing$`Date of Onset`),
                        data.existing$ctx_id, ifelse(data.existing$Hospitalised == "Yes", 1, 0),
-                       NullOrQuotes(data.existing$`Date of death (where appropriate)`),
+                       NullOrQuotes(data.existing$`Date of death (where appropriate)`), NullOrQuotes(data.existing$`Vaccinated in respect to the diagnosis`),
+                       NullOrQuotes(data.existing$`Vaccination Date (if relevant)`),
                        NullOrQuotes(data.existing$Datum.OSIRIS), NullOrQuotes(data.existing$`Status van de melding`),
                        NullOrQuotes(data.existing$mdw_id), NullOrQuotes(data.existing$casemdw_id), NullOrQuotes(data.existing$ABR), data.existing$`Case Number`)
       
@@ -273,11 +279,12 @@ for (file in files) {
       }
     }
     data.insert = data[!data$`Case Number` %in% existing,]
-    insert = sprintf("(%s, '%s', '%s', %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s, %d, %d, %s, %s, %s, %s, %s, GETDATE())", data.insert$`Case Number`, data.insert$Peildatum, data.insert$Melddatum, dbQuoteString(conn, data.insert$`Oorspronkelijke bron van de melding`),
+    insert = sprintf("(%s, '%s', '%s', %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s, %d, %d, %s, %s, %s, %s, %s, %s, %s, GETDATE())", data.insert$`Case Number`, data.insert$Peildatum, data.insert$Melddatum, dbQuoteString(conn, data.insert$`Oorspronkelijke bron van de melding`),
                      data.insert$Geslacht, NullOrQuotes(data.insert$`Age in Years (at date of onset)`), NullOrQuotes(data.insert$PC), NullOrQuotes(data.insert$ag_id), NullOrQuotes(data.insert$inf_id), data.insert$dx_id,
                      dbQuoteString(conn, data.insert$Confidence), NullOrQuotes(data.insert$ABR), NullOrQuotes(data.insert$`Recent travel to another country`), NullOrQuotes(data.insert$`Date of Onset`),
                      data.insert$ctx_id, ifelse(data.insert$Hospitalised == "Yes", 1, 0),
-                     NullOrQuotes(data.insert$`Date of death (where appropriate)`),
+                     NullOrQuotes(data.insert$`Date of death (where appropriate)`), NullOrQuotes(data.insert$`Vaccinated in respect to the diagnosis`),
+                     NullOrQuotes(data.insert$`Vaccination Date (if relevant)`),
                      NullOrQuotes(data.insert$Datum.OSIRIS), NullOrQuotes(data.insert$`Status van de melding`),
                      NullOrQuotes(data.insert$mdw_id), NullOrQuotes(data.insert$casemdw_id))
     
@@ -286,7 +293,7 @@ for (file in files) {
       for (i in seq(1, length(insert), 500)) {
         res = dbExecute(conn, paste0("BEGIN TRANSACTION;
     INSERT INTO casus(hpzone_id, peildatum, melddatum, meldorganisatie, geslacht, leeftijd, postcode, agent, infectie, diagnose,
-             diagnosezekerheid, antibioticaresistentie, buitenland, eersteziektedag, context, ziekenhuisopname, overlijden, gemeld, statusmelding, medewerker, casemanager, created) VALUES", str_c(insert[i:min(length(insert),i+499)], collapse=", "), ";
+             diagnosezekerheid, antibioticaresistentie, buitenland, eersteziektedag, context, ziekenhuisopname, overlijden, vaccinatie, vaccinatiedatum, gemeld, statusmelding, medewerker, casemanager, created) VALUES", str_c(insert[i:min(length(insert),i+499)], collapse=", "), ";
              COMMIT TRANSACTION;"))
         printf("%d rijen toegevoegd.", res)
       }

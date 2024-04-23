@@ -69,7 +69,6 @@ for (file in files) {
     else
       print(e)
   })
-  data = read_excel(file)
   
   # om te controleren of er geen gekke data aanwezig is willen we weten of 
   # data in dit bestand voor hun invoerdatum zijn (dat kan, muv HepB, niet)
@@ -139,11 +138,14 @@ for (file in files) {
            sum(!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)), str_c(data$`Case Number`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)], collapse=", "))
     printf("Er zijn %d casussen waarbij wel een meldingsnummer is aangemaakt, maar geen status van de melding is opgegeven. Dit zijn HPZone ID's %s. Status wordt aangenomen als 'Gefiatteerd'.",
            sum(!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Status van de melding`)), str_c(data$`Case Number`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Status van de melding`)], collapse=", "))
+    printf("Er zijn %d casussen waarbij wel een vaccinatiedatum is opgegeven, maar geen of negatieve vaccinatiestatus. Dit zijn HPZone ID's %s.",
+           sum((is.na(data$`Vaccinated in respect to the diagnosis`) | data$`Vaccinated in respect to the diagnosis` == "Nee") & !is.na(data$`Vaccination Date (if relevant)`), na.rm=T), str_c(data$`Case Number`[which((is.na(data$`Vaccinated in respect to the diagnosis`) | data$`Vaccinated in respect to the diagnosis` == "Nee") & !is.na(data$`Vaccination Date (if relevant)`))], collapse=", "))
     printf("Let op! Al deze gevallen worden alsnog geïmporteerd. Controleer de gegevens in HPZone en voer na correctie een nieuwe export in via dit script.")
     
     data$`Principal Contextual Setting`[is.na(data$`Principal Contextual Setting`)] = "Onbekend"
     data$`Datum gefiatteerd in Osiris`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)] = data$`Time entered`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Datum gefiatteerd in Osiris`)]
     data$`Status van de melding`[!is.na(data$`Osiris Meldingsnummer`) & is.na(data$`Status van de melding`)] = "Gefiatteerd"
+    data$`Vaccinated in respect to the diagnosis`[!is.na(data$`Vaccination Date (if relevant)`) & (is.na(data$`Vaccinated in respect to the diagnosis`) | data$`Vaccinated in respect to the diagnosis` == "Nee")] = "Ja"
     
     # omzetten naar gewenst formaat
     data = data %>%
@@ -155,7 +157,7 @@ for (file in files) {
              geslacht=case_when(Gender == "Female" ~ "F",
                                 Gender == "Male" ~ "M",
                                 TRUE ~ "U"),
-             PC=str_match(ifelse(!is.na(Postcode), Postcode, `Post District`), "\\d+")[,1],
+             PC=ifelse(!is.na(Postcode), Postcode, `Post District`),
              ziekenhuisopname=case_when(Hospitalised == "Yes" ~ 1,
                                         Hospitalised == "No" ~ 0),
              gemeld=case_when(!is.na(`Datum gefiatteerd in Osiris`) ~ `Datum gefiatteerd in Osiris`,
@@ -165,12 +167,13 @@ for (file in files) {
              diagnose="Diagnosis", diagnosezekerheid="Confidence", antibioticaresistentie="ABR",
              buitenland="Recent travel to another country", eersteziektedag="Date of Onset",
              context="Principal Contextual Setting", overlijden="Date of death (where appropriate)",
+             vaccinatie="Vaccinated in respect to the diagnosis", vaccinatiedatum="Vaccination Date (if relevant)",
              statusmelding="Status van de melding", medewerker="Investigating Officer",
              casemanager="Case Manager") %>%
       select(hpzone_id, peildatum, melddatum, meldorganisatie, geslacht, leeftijd, PC,
              agent, infectie, diagnose, diagnosezekerheid, antibioticaresistentie, buitenland,
-             eersteziektedag, context, ziekenhuisopname, overlijden, gemeld, statusmelding,
-             medewerker, casemanager) %>%
+             eersteziektedag, context, ziekenhuisopname, overlijden, vaccinatie, vaccinatiedatum,
+             gemeld, statusmelding, medewerker, casemanager) %>%
       rename(postcode=PC)
     
     write.csv(data, sprintf("export_cases_%s.csv", startdatum), na="", row.names=F)
@@ -192,7 +195,7 @@ for (file in files) {
       mutate(datum=case_when(!is.na(`Start Date`) ~ `Start Date`,
                                  TRUE ~ `Time entered`),
              artikel26=ifelse(`Artikel 26` == "Yes", 1, 0),
-             PC=str_extract(Postcode, "\\d+"),
+             PC=Postcode,
              melding.OSIRIS=case_when(!is.na(`Gemeld in Osiris`) ~ `Gemeld in Osiris`,
                                       !is.na(Osirisnummer) ~ "Yes"),
              melding=ifelse(melding.OSIRIS == "Yes", 1, 0)) %>%
@@ -225,9 +228,10 @@ for (file in files) {
            sum(is.na(data$`Specific Topic`)), str_c(data$Number[is.na(data$`Specific Topic`)], collapse=", "))
     
     data = data %>%
-      mutate(PC=str_extract(`Caller's Post District`, "\\d+"),
+      mutate(PC=`Caller's Post District`,
              geslacht=case_when(Gender == "Female" ~ "F",
                                 Gender == "Male" ~ "M",
+                                Gender == "Other" ~ "X",
                                 TRUE ~ "U")) %>%
       rename(hpzone_id="Number", startdatum="Received on", einddatum="Date closed",
              ontvanger="Originally taken by", medewerker="Handled by", status=Status,
@@ -237,7 +241,7 @@ for (file in files) {
              typebeller, categorie, onderwerp, onderwerpopen) %>%
       rename(postcode=PC)
     
-    write.csv(data, sprintf("export_enquiries_%s.csv", startdatum), na="", row.names=F)
+    write.csv(data, sprintf("export_enquiries_%s.csv", startdatum), na="", row.names=F, fileEncoding="UTF-8")
     handled_files = c(handled_files, file)
     output_files = c(output_files, sprintf("export_enquiries_%s.csv", startdatum))
     
