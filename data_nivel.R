@@ -33,7 +33,7 @@ h3 = h3[!is.na(h3)]
 # nu zoeken we de <a> met GGD in de href
 links = xml_find_all(page, paste0(xml_path(h3[[1]]), "/../../ol/li/a[contains(@href,'GGD')]"))
 datafiles = bind_rows(lapply(links, function (el) {
-  periode = str_match(xml_text(el), "(\\d{4}).*wk(\\d+)")
+  periode = str_match(xml_text(el), "(\\d{4}).*(\\d{2})")
   return(data.frame(jaar=as.numeric(periode[,2]), week=as.numeric(periode[,3]), link=xml_attr(el, "href")))
 })) %>% arrange(jaar, week)
 
@@ -106,6 +106,11 @@ for (d in 1:nrow(datafiles)) {
         data.cat$cat = category
         data.cat$week = week
         data.cat$jaar = jaar
+        
+        # is de week > 48 en is de datum van het rapport vroeg in het jaar? jaar -1 doen
+        if (week > 48 && yday(datum) < 40) {
+          data.cat$jaar = jaar - 1
+        }
         
         data.leeftijden = bind_rows(data.leeftijden, data.cat)
       }
