@@ -138,7 +138,7 @@ for (vacctype in unique(data$vaccid[data$jaar == 2023])) {
     mutate(label=sprintf("%s (%s)\n%.1f%%", PC4, Gemeentenaam, perc*100))
   if (nrow(data.subset) == 0) next
   
-  png(sprintf("graphs/%s.png", str_replace(vacctype, "/|\\*", "")), width=5000, height=3000)
+  png(sprintf("graphs/PC4 %s.png", str_replace(vacctype, "/|\\*", "")), width=5000, height=3000)
   print(tm_shape(kaartdata.pc4 %>% right_join(data.subset, by="PC4") %>% st_make_valid()) +
     tm_fill(col="perc",
             palette=nog_palette,
@@ -184,13 +184,44 @@ for (vacctype in unique(data$vaccid[data$jaar == 2023])) {
   dev.off()
 }
 
+# verloop per wijk
+data.wijk = data %>%
+  group_by(vaccid, jaar, Gemeentenaam, Wijknaam) %>%
+  summarize(Wijk=first(Wijk), n=sum(n, na.rm=T), n.vacc=sum(n.vacc, na.rm=T), perc=n.vacc/n*100) %>%
+  arrange(jaar)
+
+# grote versie per wijk
+for (vacctype in unique(data$vaccid[data$jaar == 2023])) {
+  data.subset = data.wijk %>%
+    filter(jaar == 2023, vaccid == vacctype) %>%
+    mutate(label=sprintf("%s (%s)\n%.1f%%", Wijknaam, Gemeentenaam, perc))
+  if (nrow(data.subset) == 0) next
+  
+  png(sprintf("graphs/wijk %s.png", str_replace(vacctype, "/|\\*", "")), width=4000, height=2400)
+  print(tm_shape(kaartdata.wijk %>% right_join(data.subset, by=c("statcode"="Wijk")) %>% st_make_valid()) +
+          tm_fill(col="perc",
+                  palette=nog_palette,
+                  breaks=quantile(data.subset$perc, seq(0, 1, 0.2), na.rm=T),
+                  title="Vaccinatiegraad",
+                  textNA="Geen data",
+                  legend.show=T,
+                  legend.format=list(fun=function(x) { return(sprintf("%.0f%%", x)) },
+                                     text.separator="tot")) +
+          tm_borders(alpha=0.5, col=nog_colors[2]) +
+          tm_text(text="label", size="AREA", size.lowerbound=0.8, print.tiny=T) +
+          tm_layout(main.title=sprintf("Vaccinatiegraad %s in 2023", vacctype),
+                    frame=F,
+                    legend.outside=T))
+  dev.off()
+}
+
 # kleinere versie per type, met gemeentegrenzen
 for (vacctype in unique(data$vaccid[data$jaar == 2023])) {
   data.subset = data %>%
     filter(jaar == 2023, vaccid == vacctype) 
   if (nrow(data.subset) == 0) next
   
-  png(sprintf("graphs/gemeentes_%s.png", str_replace(vacctype, "/|\\*", "")), width=900, height=600)
+  png(sprintf("graphs/gemeente %s.png", str_replace(vacctype, "/|\\*", "")), width=900, height=600)
   print(tm_shape(kaartdata.pc4 %>% right_join(data.subset, by="PC4") %>% st_make_valid()) +
           tm_fill(col="perc",
                   palette=nog_palette,
@@ -219,12 +250,6 @@ integer_breaks <- function(n = 5, ...) {
   return(fxn)
 }
 
-# verloop per wijk
-data.wijk = data %>%
-  group_by(vaccid, jaar, Gemeentenaam, Wijknaam) %>%
-  summarize(n=sum(n, na.rm=T), n.vacc=sum(n.vacc, na.rm=T), perc=n.vacc/n*100) %>%
-  arrange(jaar)
-
 for (vacctype in unique(data.wijk$vaccid)) {
   for (gem in unique(data.wijk$Gemeentenaam)) {
     data.subset = data.wijk %>%
@@ -239,6 +264,65 @@ for (vacctype in unique(data.wijk$vaccid)) {
     ggsave(sprintf("%s - %s.png", gem, str_replace(vacctype, "/|\\*", "")), graph, path="graphs/per wijk")
   }
 }
+
+# heatmap met toe- en afname per vaccinatie
+# eerst per vaccinatie
+for (vacctype in unique(data$vaccid[data$jaar == 2023])) {
+  data.subset = data.wijk %>%
+    ungroup() %>%
+    filter(vaccid == vacctype) %>%
+    group_by(vaccid, Gemeentenaam, Wijknaam) %>%
+    arrange(vaccid, Gemeentenaam, Wijknaam, jaar) %>%
+    mutate(prev=dplyr::lag(perc), verschil=perc-prev,
+           Wijknaam.hr=paste0(Gemeentenaam, " - ", Wijknaam)) %>%
+    filter(!is.na(verschil))
+  if (nrow(data.subset) == 0) next
+  
+  graph = ggplot(data.subset, aes(x=jaar, y=Wijknaam.hr, fill=verschil)) +
+    geom_tile() +
+    scale_fill_gradient2(high="blue", mid="white", low="red") +
+    labs(title="Verschil in vaccinatiegraad door de jaren heen", subtitle=vacctype, x=NULL, y=NULL, fill="Verschil") +
+    theme_minimal()
+  ggsave(sprintf("heatmap vacc %s.png", str_replace(vacctype, "/|\\*", "")), graph, path="graphs/", bg="white", width=2000, height=2400, units="px")
+}
+
+# dan per wijk
+for (wijk in unique(data.wijk$Wijknaam)) {
+  data.subset = data.wijk %>%
+    ungroup() %>%
+    filter(Wijknaam == wijk) %>%
+    arrange(jaar) %>%
+    group_by(vaccid, Gemeentenaam, Wijknaam) %>%
+    arrange(vaccid, Gemeentenaam, Wijknaam, jaar) %>%
+    mutate(prev=lag(perc), verschil=(perc-prev)) %>%
+    filter(!is.na(verschil))
+  if (nrow(data.subset) == 0) next
+  
+  graph = ggplot(data.subset, aes(x=jaar, y=vaccid, fill=verschil)) +
+    geom_tile() +
+    scale_fill_gradient2(high="blue", mid="white", low="red") +
+    labs(title="Verschil in vaccinatiegraad door de jaren heen", subtitle=wijk, x=NULL, y=NULL, fill="Verschil") +
+    theme_minimal()
+  ggsave(sprintf("heatmap wijk %s - %s.png", first(data.subset$Gemeentenaam), wijk), graph, path="graphs/", bg="white", width=2000, height=2400, units="px")
+}
+
+# overzicht van het afgelopen jaar
+data.subset = data.wijk %>%
+  ungroup() %>%
+  filter(jaar %in% c(2022, 2023)) %>%
+  arrange(jaar) %>%
+  group_by(vaccid, Gemeentenaam, Wijknaam) %>%
+  arrange(vaccid, Gemeentenaam, Wijknaam, jaar) %>%
+  mutate(prev=lag(perc), verschil=(perc-prev),
+         Wijknaam.hr=paste0(Gemeentenaam, " - ", Wijknaam)) %>%
+  filter(!is.na(verschil))
+graph = ggplot(data.subset, aes(x=vaccid, y=Wijknaam.hr, fill=verschil)) +
+  geom_tile() +
+  scale_fill_gradient2(high="blue", mid="white", low="red") +
+  labs(title="Verschil in vaccinatiegraad door de jaren heen", x=NULL, y=NULL, fill="Verschil") +
+  theme_minimal() +
+  theme(axis.text.x=element_text(angle=90))
+ggsave("heatmap afname 2023.png", graph, path="graphs/", bg="white", width=3000, height=3000, units="px")
 
 
 # output = leaflet() %>%
