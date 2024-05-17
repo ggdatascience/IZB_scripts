@@ -1,3 +1,8 @@
+# Dit script neemt de export van DVP per PC4 en maakt er een leesbare dataset en een set kaartjes van.
+# Let op: het script verwachten een map 'graphs' met daarin vervolgens een map 'per wijk'. Maak deze aan als ze nog niet bestaan.
+# Verder is de gebiedsindeling van het CBS (https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-data/cbs-gebiedsindelingen) en
+# de conversietabel PC6 (https://www.cbs.nl/nl-nl/maatwerk/2023/35/buurt-wijk-en-gemeente-2023-voor-postcode-huisnummer) nodig. 
+
 library(tidyverse)
 library(sf)
 library(tmap)
@@ -135,7 +140,7 @@ kaartdata.pc4 = st_read("../../../../Documenten - NOG W Openbare data/Kaarten/pc
 for (vacctype in unique(data$vaccid[data$jaar == 2023])) {
   data.subset = data %>%
     filter(jaar == 2023, vaccid == vacctype) %>%
-    mutate(label=sprintf("%s (%s)\n%.1f%%", PC4, Gemeentenaam, perc*100))
+    mutate(label=sprintf("%s (%s)\n%.1f%% (%d/%d)", PC4, Gemeentenaam, perc*100, n.vacc, n))
   if (nrow(data.subset) == 0) next
   
   png(sprintf("graphs/PC4 %s.png", str_replace(vacctype, "/|\\*", "")), width=5000, height=3000)
@@ -166,7 +171,7 @@ for (vacctype in unique(data$vaccid[data$jaar == 2023])) {
     mutate(label=sprintf("%s (%s)\n%.1f%%", PC4, Gemeentenaam, verschil*100))
   if (nrow(data.subset) == 0) next
   
-  png(sprintf("graphs/afname %s.png", str_replace(vacctype, "/|\\*", "")), width=5000, height=3000)
+  png(sprintf("graphs/afname_2022 %s.png", str_replace(vacctype, "/|\\*", "")), width=5000, height=3000)
   print(tm_shape(kaartdata.pc4 %>% right_join(data.subset, by="PC4") %>% st_make_valid()) +
           tm_fill(col="verschil",
                   palette=nog_palette,
@@ -190,11 +195,13 @@ data.wijk = data %>%
   summarize(Wijk=first(Wijk), n=sum(n, na.rm=T), n.vacc=sum(n.vacc, na.rm=T), perc=n.vacc/n*100) %>%
   arrange(jaar)
 
+write.xlsx(data.wijk, "vaccinatiegraad per wijk.xlsx", asTable=T, overwrite=T)
+
 # grote versie per wijk
 for (vacctype in unique(data$vaccid[data$jaar == 2023])) {
   data.subset = data.wijk %>%
     filter(jaar == 2023, vaccid == vacctype) %>%
-    mutate(label=sprintf("%s (%s)\n%.1f%%", Wijknaam, Gemeentenaam, perc))
+    mutate(label=sprintf("%s (%s)\n%.1f%% (%d/%d)", Wijknaam, Gemeentenaam, perc, n.vacc, n))
   if (nrow(data.subset) == 0) next
   
   png(sprintf("graphs/wijk %s.png", str_replace(vacctype, "/|\\*", "")), width=4000, height=2400)
