@@ -70,6 +70,9 @@ for (d in 1:nrow(datafiles)) {
       str_replace("\\)((;[0-9,.]+)+)\\sVeiligheids([^;0-9]+)", ")\nVeiligheids\\3;\\1;") %>%
       # soms komt een hele serie verder naar voren
       str_replace("(GGD Noord- en Oost-Gelderland(?:;[0-9.,() -]+){12})((?:;[0-9.,() -]+)+)\\sVeiligheids([^;0-9]+)", "\\1\nVeiligheids\\3\\2") %>%
+      # VGGM is te lang voor de tabel, en soms valt de splitsing met de volgende cel daardoor weg
+      # we kunnen dit een beetje bruteforcen door (tekst met daarin 'Veiligheids- en Gezondheids' gevolgd door cijfer) te vervangen door (tekst);(cijfer)
+      str_replace("(Veiligheids- en Gezondheids[^;0-9]+)(\\d+)","\\1;\\2") %>%
       str_replace("Nederland;(.*?)\\n.*", "Nederland;\\1") %>% # de regel na Nederland is onzin; overslaan
       str_replace_all(";;", ";") %>% # zorgen dat decimalen werken
       str_replace_all(",", ".")

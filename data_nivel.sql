@@ -25,7 +25,7 @@ INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (3, N'GGD Drent
 INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (4, N'GGD IJsselland', N'IJsselland')
 INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (5, N'GGD Twente', N'Twente')
 INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (6, N'GGD Noord- en Oost-Gelderland', N'Oost-Gelderland')
-INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (7, N'Veiligheids- en Gezondheidsregio Gelderland-Midden', N'Gelderland-Midden')
+INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (7, N'Veiligheids- en Gezondheidsregio Gelderland-Midden', N'Gezondheidsregio Gelder')
 INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (8, N'GGD Gelderland-Zuid', N'Gelderland-Zuid')
 INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (9, N'GGD regio Utrecht', N'Utrecht')
 INSERT [dbo].[ggd] ([ggd_id], [ggd_naam], [ggd_zoekterm]) VALUES (10, N'GGD Hollands-Noorden', N'Hollands-Noorden')
