@@ -14,6 +14,7 @@ library(cbsodataR)
 library(tmap)
 library(maptiles)
 library(sf)
+library(ggdnog)
 
 setwd(dirname(this.path()))
 
@@ -27,7 +28,7 @@ nog_palette = c("#FAE6EF","#F6CCDF","#ED99BE","#E3669E","#D1005D")
 # metadata ophalen voor het zoeken van gemeentes
 gemeenten.nog = "Aalten, Apeldoorn, Berkelland, Bronckhorst, Brummen, Doetinchem, Elburg, Epe, Ermelo, Harderwijk, Hattem, Heerde, Lochem, Montferland, Nunspeet, Oldebroek, Oost Gelre, Oude IJsselstreek, Putten, Voorst, Winterswijk, Zutphen"
 gemeenten.nog = str_trim(unlist(str_split(gemeenten.nog, ",")))
-meta = cbs_get_meta("85372NED")
+meta = cbs_get_meta("85740NED")
 gemeenten = meta$WijkenEnBuurten %>%
   filter(str_starts(Key, "GM")) %>%
   filter(Title %in% gemeenten.nog)
@@ -39,20 +40,26 @@ buurten = meta$WijkenEnBuurten %>%
 # deze is beschikbaar vanaf de website van het CBS: https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-data/cbs-gebiedsindelingen
 # let op: de laagnamen kunnen wisselen tussen versies
 # zie st_layers(bestandsnaam) voor de correcte naam
-kaartdata.gemeente = st_read("../../../../../Gedeelde documenten - NOG W Openbare data/Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_gemeente_2021_gegeneraliseerd")
+kaartdata.gemeente = st_read(dir_maps("cbsgebiedsindelingen_2022_v1.gpkg"), layer = "cbs_gemeente_2021_gegeneraliseerd")
 kaartdata.gemeente = kaartdata.gemeente %>%
   filter(statcode %in% str_trim(gemeenten$Key))
-kaartdata.buurt = st_read("../../../../../Gedeelde documenten - NOG W Openbare data/Kaarten/cbsgebiedsindelingen_2022_v1.gpkg", layer = "cbs_buurt_2020_gegeneraliseerd")
+kaartdata.buurt = st_read(dir_maps("cbsgebiedsindelingen_2022_v1.gpkg"), layer = "cbs_buurt_2020_gegeneraliseerd")
 kaartdata.buurt = kaartdata.buurt %>%
   filter(statcode %in% str_trim(buurten$Key))
 
 kaart = function (data, var, title, legend.title, textvar = NA, breaks=NA) {
-  #box = st_bbox(data)
-  bg = maptiles::get_tiles(data, crop=T, provider="Esri.WorldStreetMap", zoom=10)
+  result = c()
+  tryCatch({
+    bg = maptiles::get_tiles(data, crop=T, provider="Esri.WorldStreetMap", zoom=10)
+    
+    result = tm_shape(bg) + tm_rgb()
+  },
+           error=\(x) { 
+             printf("Foutmelding tijdens het ophalen van een achtergrond: %s", x)
+          })
   
   if (length(var) == 1) {
-    result = tm_shape(bg) + tm_rgb() +
-      tm_shape(data) +
+     result = result + tm_shape(data) +
       tm_fill(col = var,
               palette= nog_palette,
               alpha=0.4,
@@ -67,7 +74,7 @@ kaart = function (data, var, title, legend.title, textvar = NA, breaks=NA) {
       tm_layout(main.title=title,
                 frame=F)
   } else {
-    result = tm_shape(bg) + tm_rgb() + tm_shape(data) +
+    result = result + tm_shape(data) +
       tm_fill(col = var,
               palette=nog_palette,
               alpha=0.4,
@@ -94,10 +101,10 @@ kaart = function (data, var, title, legend.title, textvar = NA, breaks=NA) {
 ##
 ## opleidingen
 ##
-opleiding.gemeente = cbs_get_data("85372NED", WijkenEnBuurten=gemeenten$Key, Marges="MW00000") %>% cbs_add_label_columns()
-# de buurten zijn te groot om in C)C)n keer te doen; loopen
+opleiding.gemeente = cbs_get_data("85740NED", WijkenEnBuurten=gemeenten$Key, Marges="MW00000") %>% cbs_add_label_columns()
+# de buurten zijn te groot om in één keer te doen; loopen
 opleiding.buurt = lapply(unique(buurten$Municipality), function (gemcode) {
-  return(cbs_get_data("85372NED", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode], Marges="MW00000") %>% cbs_add_label_columns())
+  return(cbs_get_data("85740NED", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode], Marges="MW00000") %>% cbs_add_label_columns())
 })
 opleiding.buurt = bind_rows(opleiding.buurt) %>%
   left_join(buurten %>% select(Key, Gemeente), by=c("WijkenEnBuurten"="Key"))
@@ -121,14 +128,16 @@ opleiding.pergemeente = opleiding.gemeente %>%
 ##
 ## kerncijfers per buurt
 ##
+# 85618NED = 2023
+# 85039NED = 2021
 kerncijfers.buurt = lapply(unique(buurten$Municipality), function (gemcode) {
-  return(cbs_get_data("85039NED", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode]) %>% cbs_add_label_columns() %>% select(-MeestVoorkomendePostcode_114))
+  return(cbs_get_data("85618NED", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode]) %>% cbs_add_label_columns() %>% select(-MeestVoorkomendePostcode_115))
 })
 kerncijfers.buurt = bind_rows(kerncijfers.buurt)
 
 inwoners.buurt = kerncijfers.buurt %>%
-  select(WijkenEnBuurten, WijkenEnBuurten_label, Gemeentenaam_1, AantalInwoners_5:SterfteRelatief_27, GemiddeldeHuishoudensgrootte_32, Bevolkingsdichtheid_33,
-         Koopwoningen_40:HuurwoningenTotaal_41) %>%
+  select(WijkenEnBuurten, WijkenEnBuurten_label, Gemeentenaam_1, AantalInwoners_5:BuitenEuropa_19, GeboorteTotaal_25:SterfteRelatief_28, GemiddeldeHuishoudensgrootte_33, Bevolkingsdichtheid_34,
+         Koopwoningen_41:HuurwoningenTotaal_42) %>%
   mutate(Gemeentenaam_1=str_trim(Gemeentenaam_1))
 colnames(inwoners.buurt) = str_replace(colnames(inwoners.buurt), "_\\d+$", "")
 # combineren met opleidingsdata
@@ -192,7 +201,7 @@ totalen.migr = data.migr %>%
 
 perc.migr = data.migr %>%
   filter(Leeftijd == "10000", Herkomstland != "T001040", Geboorteland == "T001638") %>% # alle herkomstlanden, maar geboorteland maakt niet uit
-  group_by(RegioS_label, Herkomstland_label) %>%
+  group_by(RegioS_label, Herkomstland, Herkomstland_label) %>%
   summarize(n=sum(Bevolking_1, na.rm=T)) %>%
   left_join(totalen.migr %>% select(RegioS_label, Bevolking_1), by="RegioS_label") %>%
   mutate(perc=n/Bevolking_1*100)
@@ -200,29 +209,41 @@ perc.migr = data.migr %>%
 ##
 ## vaccinatiegraad
 ##
-vacc.graad = cbs_get_data("50117NED", catalog="RIVM", RegioS=str_trim(gemeenten$Key))
+# 50136NED = 2024
+# 50117NED = 2023
+vacc.graad = cbs_get_data("50136NED", catalog="RIVM", RegioS=str_trim(gemeenten$Key))
 vacc.graad = vacc.graad %>%
   cbs_add_label_columns() %>%
   mutate(Jaar=as.numeric(str_extract(Perioden, "\\d+")),
          Regio=str_trim(RegioS)) %>%
-  rename(Populatie=Populatie_1, Gevaccineerden=Gevaccineerden_2, Vaccinatiegraad=Vaccinatiegraad_3)
+  rename(Populatie=Populatie_1) %>%
+  mutate(Gevaccineerden=coalesce(GevaccineerdenZonderLeeftijdsgrens_4, GevaccineerdenMetLeeftijdsgrens_2), 
+         Vaccinatiegraad=coalesce(VaccinatiegraadZonderLeeftijdsgrens_5, VaccinatiegraadMetLeeftijdsgrens_3))
 jaar.vacc = max(vacc.graad$Jaar, na.rm=T) # nieuwste cohort
+
+vacc.graad.nog = cbs_get_data("50136NED", catalog="RIVM", RegioS="GG1413")
+vacc.graad.nog = vacc.graad.nog %>%
+  cbs_add_label_columns() %>%
+  mutate(Jaar=as.numeric(str_extract(Perioden, "\\d+")),
+         Regio=str_trim(RegioS)) %>%
+  rename(Populatie=Populatie_1) %>%
+  mutate(Gevaccineerden=coalesce(GevaccineerdenZonderLeeftijdsgrens_4, GevaccineerdenMetLeeftijdsgrens_2), 
+         Vaccinatiegraad=coalesce(VaccinatiegraadZonderLeeftijdsgrens_5, VaccinatiegraadMetLeeftijdsgrens_3))
 
 ##
 ## gezondheid per buurt
 ##
-meta = cbs_get_meta("50090NED", catalog="RIVM")
+meta = cbs_get_meta("50120NED", catalog="RIVM")
 jaar.gezondheid = as.numeric(max(meta$Perioden$Title))
 gezondheid.buurt = lapply(unique(buurten$Municipality), function (gemcode) {
-  return(cbs_get_data("50090NED", catalog="RIVM", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode], Perioden=paste0(jaar.gezondheid, "JJ00"), Marges="MW00000") %>% cbs_add_label_columns())
+  return(cbs_get_data("50120NED", catalog="RIVM", WijkenEnBuurten=buurten$Key[buurten$Municipality == gemcode], Perioden=paste0(jaar.gezondheid, "JJ00"), Marges="MW00000") %>% cbs_add_label_columns())
 })
-gezondheid.buurt = bind_rows(gezondheid.buurt) %>% rename(ErnstigeGeluidhinderWeg50KmMinUur=ErnstigeGeluidhinderWeg50KmUur_42, ErnstigeGeluidhinderWeg50KmPlusUur=ErnstigeGeluidhinderWeg50KmUur_43)
+gezondheid.buurt = bind_rows(gezondheid.buurt)
 # er zijn twee "ErnstigeGeluidhinderWeg50KmUur"-variabelen; die moeten we hernoemen om conflicten te voorkomen
 colnames(gezondheid.buurt) = str_replace(colnames(gezondheid.buurt), "_\\d+$", "")
 
-gezondheid.gemeentes = cbs_get_data("50090NED", catalog="RIVM", WijkenEnBuurten=gemeenten$Key, Perioden="2020JJ00", Marges="MW00000") %>%
-  cbs_add_label_columns() %>%
-  rename(ErnstigeGeluidhinderWeg50KmMinUur=ErnstigeGeluidhinderWeg50KmUur_42, ErnstigeGeluidhinderWeg50KmPlusUur=ErnstigeGeluidhinderWeg50KmUur_43)
+gezondheid.gemeentes = cbs_get_data("50120NED", catalog="RIVM", WijkenEnBuurten=gemeenten$Key, Perioden=paste0(jaar.gezondheid, "JJ00"), Marges="MW00000") %>%
+  cbs_add_label_columns()
 colnames(gezondheid.gemeentes) = str_replace(colnames(gezondheid.buurt), "_\\d+$", "")
 
 ##
@@ -255,7 +276,7 @@ beroepen = cbs_get_data("84916NED", RegioS=str_trim(gemeenten$Key)) %>%
 ##
 graphname = function (naam) { return(sprintf("IZB overzicht/graphs/%s_%s.png", gemeentenaam, naam)) }
 
-bronnen = read.table(text=paste0("Element;Bron;Jaar\nOpleidingsniveau;CBS;2021\nKerncijfers wijken;CBS;2021\nInwonersaantallen;CBS;", jaar.inwoners, "\nMigranten en herkomst;CBS;", jaar.migranten, "\nGezondheid en leefstijl;RIVM;", jaar.gezondheid, "\nVaccinatiegraad;RIVM;", jaar.vacc, "\nZorgdeclaraties;Vektis;2021\nLevensverwachting;RIVM;2020"), header=T, sep=";")
+bronnen = read.table(text=paste0("Element;Bron;Jaar\nOpleidingsniveau;CBS;2022\nKerncijfers wijken;CBS;2023\nInwonersaantallen;CBS;", jaar.inwoners, "\nMigranten en herkomst;CBS;", jaar.migranten, "\nGezondheid en leefstijl;RIVM;", jaar.gezondheid, "\nVaccinatiegraad;RIVM;", jaar.vacc, "\nZorgdeclaraties;Vektis;2021\nLevensverwachting;RIVM;2020"), header=T, sep=";")
 
 ##
 ## overzichtssheet per gemeente
@@ -293,7 +314,7 @@ for (i in 1:nrow(gemeenten)) {
   addStyle(wb, "Overzicht", percStyle, cols=2:ncol(displaydata), rows=8, gridExpand=T, stack=T)
   
   # huwelijkse staat en afkomst
-  displaydata = inwoners.gemeente %>% select(Ongehuwd:OverigNietWesters) %>% mutate(across(everything(), ~.x/inwoners.gemeente$AantalInwoners))
+  displaydata = inwoners.gemeente %>% select(Ongehuwd:BuitenEuropa) %>% mutate(across(everything(), ~.x/inwoners.gemeente$AantalInwoners))
   names = str_replace_all(colnames(displaydata), "([a-z]{1})([A-Z]{1})", "\\1 \\2")
   displaydata = t(displaydata) %>% data.frame(Perc=.) %>% mutate("Groep"=names) %>% relocate(Groep)
   writeData(wb, "Overzicht", "Huwelijkse staat en afkomst", startCol=1, startRow=10)
@@ -356,10 +377,11 @@ for (i in 1:nrow(gemeenten)) {
     mutate(Perc=Aantal/sum(Aantal, na.rm=T)) %>%
     select(-Aantal)
   
-  writeData(wb, "Overzicht", "Beroepen", startCol=1, startRow=26)
-  addStyle(wb, "Overzicht", kopStyle, cols=1, rows=26, stack=T)
-  writeData(wb, "Overzicht", beroepen.gemeente, startCol=1, startRow=27, headerStyle=headerStyle, borders="surrounding")
-  addStyle(wb, "Overzicht", percStyle, cols=2:3, rows=28:(28+nrow(beroepen.gemeente)), gridExpand=T, stack=T)
+  start = 17+nrow(displaydata)-4+2
+  writeData(wb, "Overzicht", "Beroepen", startCol=1, startRow=start)
+  addStyle(wb, "Overzicht", kopStyle, cols=1, rows=start, stack=T)
+  writeData(wb, "Overzicht", beroepen.gemeente, startCol=1, startRow=start+1, headerStyle=headerStyle, borders="surrounding")
+  addStyle(wb, "Overzicht", percStyle, cols=2:3, rows=(start+2):(start+2+nrow(beroepen.gemeente)), gridExpand=T, stack=T)
   
   # kaartje, voor de leuk
   png(graphname("kaart"))
@@ -378,15 +400,16 @@ for (i in 1:nrow(gemeenten)) {
   
   gezondheid.gemeente = gezondheid.buurt %>%
     filter(str_trim(Gemeentenaam) == gemeentenaam) %>%
-    select(Leeftijd_label, WijkenEnBuurten_label, ErvarenGezondheidGoedZeerGoed:BrozeGezondheidSocialeDomein) %>%
+    select(Leeftijd_label, WijkenEnBuurten_label, ErvarenGezondheidGoedZeerGoed:SociaalEenzaam) %>%
     rename(Buurt=WijkenEnBuurten_label) %>%
-    mutate(across(ErvarenGezondheidGoedZeerGoed:BrozeGezondheidSocialeDomein, ~.x/100))
+    mutate(across(ErvarenGezondheidGoedZeerGoed:SociaalEenzaam, ~.x/100))
   
   displaydata = gezondheid.gemeente %>%
     filter(Leeftijd_label == "18 jaar of ouder") %>%
     select(Buurt, VoldoetAanBeweegrichtlijn:OvermatigeDrinker)
-  writeData(wb, "Leefstijl", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+  writeData(wb, "Leefstijl", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Leefstijl", percStyle, cols=2:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
+  freezePane(wb, "Leefstijl", firstRow=T)
   
   # leeftijden inwoners
   addWorksheet(wb, "Leeftijden")
@@ -403,8 +426,9 @@ for (i in 1:nrow(gemeenten)) {
     pivot_wider(names_from="Geslacht_label", values_from=c("n", "perc")) %>%
     relocate(perc_Mannen, .after=n_Mannen) %>%
     rename(Mannen=n_Mannen, Vrouwen=n_Vrouwen, percM=perc_Mannen, percV=perc_Vrouwen)
-  writeData(wb, "Leeftijden", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+  writeData(wb, "Leeftijden", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Leeftijden", percStyle, cols=c(3,5), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
+  freezePane(wb, "Leeftijden", firstRow=T)
   
   # leeftijden weergeven in grafiek
   # om een tweezijdige grafiek te maken moeten we ??n van de waardes flippen, in dit geval zetten we mannen op negatief
@@ -442,12 +466,14 @@ for (i in 1:nrow(gemeenten)) {
     select(-c(RegioS_label, Bevolking_1)) %>%
     rename(Regio=Herkomstland_label) %>%
     mutate(perc=perc/100)
-  writeData(wb, "Migranten", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+  writeData(wb, "Migranten", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Migranten", percStyle, cols=3, rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
+  freezePane(wb, "Migranten", firstRow=T)
   
   png(graphname("herkomst_migranten"))
   print(ggplot(perc.migr %>%
-           filter(RegioS_label == gemeentenaam, Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "AziC+", "OceaniC+")) %>%
+                 # lelijke codes omdat R niet om kan gaan met de ë in Azië; hier staat Nederland, Europa excl. NL, Afrika, Amerika, Azië, Oceanië
+           filter(RegioS_label == gemeentenaam, Herkomstland %in% c("1012600", "H007933", "H008519", "H008520", "H008524", "H008531")) %>% 
            mutate(perc_label = sprintf("%0.1f%%", perc)),
          aes(x=Herkomstland_label, y=n, fill=Herkomstland_label)) +
     geom_col() +
@@ -472,8 +498,9 @@ for (i in 1:nrow(gemeenten)) {
            Laag=Laag/n,
            Middelbaar=Middelbaar/n,
            Hoog=Hoog/n)
-  writeData(wb, "Opleiding", displaydata[,-1], startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+  writeData(wb, "Opleiding", displaydata[,-1], startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Opleiding", percStyle, cols=2:4, rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
+  freezePane(wb, "Opleiding", firstRow=T)
   
   
   kaartdata = kaartdata.buurt %>% filter(statcode %in% displaydata$WijkenEnBuurten) %>%
@@ -511,8 +538,9 @@ for (i in 1:nrow(gemeenten)) {
     rename(Vaccinatie=Vaccinaties_label) %>%
     mutate(Vaccinatiegraad=Vaccinatiegraad/100) %>%
     pivot_wider(names_from="Jaar", values_from="Vaccinatiegraad")
-  writeData(wb, "Vaccinaties", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+  writeData(wb, "Vaccinaties", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Vaccinaties", percStyle, cols=2:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
+  freezePane(wb, "Vaccinaties", firstRow=T)
   
   ylim = vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties %in% c("A028769", "A028770", "A028771", "A028772")]
   ylim = ylim[!is.na(ylim)]
@@ -580,13 +608,13 @@ for (i in 1:nrow(gemeenten)) {
   addWorksheet(wb, "Gezondheid")
   setColWidths(wb, "Gezondheid", cols=1, widths=30)
   
-  
   displaydata = gezondheid.gemeente %>%
     filter(Leeftijd_label == "18 jaar of ouder") %>%
-    select(Buurt, EenOfMeerLangdurigeAandoeningen:BeperkingInBewegen)
-  writeData(wb, "Gezondheid", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+    select(Buurt, EenOfMeerLangdurigeAandoeningen:SociaalEenzaam)
+  writeData(wb, "Gezondheid", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Gezondheid", percStyle, cols=2:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
   setColWidths(wb, "Gezondheid", cols=2:ncol(displaydata), widths=20)
+  freezePane(wb, "Gezondheid", firstRow=T)
   
   # geografische indeling
   addWorksheet(wb, "Verschillen per buurt")
@@ -595,7 +623,7 @@ for (i in 1:nrow(gemeenten)) {
   inwoners.gemeente = inwoners.buurt %>%
     filter(Gemeentenaam == gemeentenaam) %>%
     select(-WijkenEnBuurten, -Gemeentenaam) %>%
-    mutate(across(Mannen:OverigNietWesters, ~.x/AantalInwoners),
+    mutate(across(Mannen:BuitenEuropa, ~.x/AantalInwoners),
            Koopwoningen=Koopwoningen/100,
            HuurwoningenTotaal=HuurwoningenTotaal/100, # dit zijn al percentages
            Laag=Laag/(Laag+Middelbaar+Hoog),
@@ -605,8 +633,9 @@ for (i in 1:nrow(gemeenten)) {
     rename(Laag.Opl=Laag, Middelbaar.Opl=Middelbaar, Hoog.Opl=Hoog, Huurwoningen=HuurwoningenTotaal,
            Buurt=WijkenEnBuurten_label)
   colnames(inwoners.gemeente) = str_replace(colnames(inwoners.gemeente), "k_", "")
-  writeData(wb, "Verschillen per buurt", inwoners.gemeente, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+  writeData(wb, "Verschillen per buurt", inwoners.gemeente, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Verschillen per buurt", percStyle, cols=c(3:23, ncol(inwoners.gemeente)-(1:0)), rows=2:(nrow(inwoners.gemeente)+1), gridExpand=T, stack=T)
+  freezePane(wb, "Verschillen per buurt", firstRow=T)
   
   # zorgkosten
   addWorksheet(wb, "Zorgkosten")
@@ -621,7 +650,7 @@ for (i in 1:nrow(gemeenten)) {
   rownames(displaydata) = str_replace(zorgkosten.leeftijd$leeftijdsklasse[1:19], " jaar", "")
   
   png(graphname("zorgkosten"))
-  barplot(t(displaydata), main="Zorgkosten per persoon per jaar", ylab="Kosten (b,)", beside=T, col=nog_colors[1:2],
+  barplot(t(displaydata), main="Zorgkosten per persoon per jaar", ylab="Kosten (€)", beside=T, col=nog_colors[1:2],
           legend.text=c("Mannen", "Vrouwen"), args.legend=c(x="topleft"), las=2)
   dev.off()
   insertImage(wb, "Zorgkosten", graphname("zorgkosten"), startRow=2, startCol=2, width=5, height=5)
@@ -638,7 +667,7 @@ for (i in 1:nrow(gemeenten)) {
     mutate(display=ifelse(statnaam == gemeentenaam, gemeentenaam, ""))
   
   png(graphname("zorgkosten_kaart"))
-  print(kaart(kaartdata, var="Bedrag", title="Gemiddelde zorgkosten p.p.p.j.", legend.title="Bedrag (b,)", textvar="display"))
+  print(kaart(kaartdata, var="Bedrag", title="Gemiddelde zorgkosten p.p.p.j.", legend.title="Bedrag (€)", textvar="display"))
   dev.off()
   insertImage(wb, "Zorgkosten", graphname("zorgkosten_kaart"), startRow=2, startCol=8, width=5, height=5)
   
@@ -649,8 +678,9 @@ for (i in 1:nrow(gemeenten)) {
     filter(Gemeentecode == gemeentecode) %>%
     select(-gemeentenaam, -Gemeentecode, -Gemeente)
   
-  writeData(wb, "Zorgkosten data", zorgkosten.gemeente, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+  writeData(wb, "Zorgkosten data", zorgkosten.gemeente, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Zorgkosten data", geldStyle, cols=5:ncol(zorgkosten.gemeente), rows=2:(nrow(zorgkosten.gemeente)+1), gridExpand=T, stack=T)
+  freezePane(wb, "Zorgkosten data", firstRow=T)
   
   # bronvermelding
   addWorksheet(wb, "Bronvermelding")
@@ -691,7 +721,7 @@ writeData(wb, "Overzicht", displaydata, startCol=1, startRow=7, headerStyle=head
 addStyle(wb, "Overzicht", percStyle, cols=2:ncol(displaydata), rows=8, gridExpand=T, stack=T)
 
 # huwelijkse staat en afkomst
-displaydata = inwoners.nog %>% select(Ongehuwd:OverigNietWesters) %>% mutate(across(everything(), ~.x/inwoners.nog$AantalInwoners))
+displaydata = inwoners.nog %>% select(Ongehuwd:BuitenEuropa) %>% mutate(across(everything(), ~.x/inwoners.nog$AantalInwoners))
 names = str_replace_all(colnames(displaydata), "([a-z]{1})([A-Z]{1})", "\\1 \\2")
 displaydata = t(displaydata) %>% data.frame(Perc=.) %>% mutate("Groep"=names) %>% relocate(Groep)
 writeData(wb, "Overzicht", "Huwelijkse staat en afkomst", startCol=1, startRow=10)
@@ -753,10 +783,11 @@ beroepen.nog = beroepen %>%
   mutate(Perc=Aantal/sum(Aantal, na.rm=T)) %>%
   select(-Aantal)
 
-writeData(wb, "Overzicht", "Beroepen", startCol=1, startRow=26)
-addStyle(wb, "Overzicht", kopStyle, cols=1, rows=26, stack=T)
-writeData(wb, "Overzicht", beroepen.gemeente, startCol=1, startRow=27, headerStyle=headerStyle, borders="surrounding")
-addStyle(wb, "Overzicht", percStyle, cols=2:3, rows=28:(28+nrow(beroepen.gemeente)), gridExpand=T, stack=T)
+start = 17+nrow(displaydata)-4+2
+writeData(wb, "Overzicht", "Beroepen", startCol=1, startRow=start)
+addStyle(wb, "Overzicht", kopStyle, cols=1, rows=start, stack=T)
+writeData(wb, "Overzicht", beroepen.nog, startCol=1, startRow=start+1, headerStyle=headerStyle, borders="surrounding")
+addStyle(wb, "Overzicht", percStyle, cols=2:3, rows=(start+2):(start+2+nrow(beroepen.nog)), gridExpand=T, stack=T)
 
 # kaartje, voor de leuk
 png(graphname("kaart"))
@@ -773,9 +804,9 @@ addWorksheet(wb, "Leefstijl")
 setColWidths(wb, "Leefstijl", cols=1:20, widths=20)
 
 gezondheid.nog = gezondheid.buurt %>%
-  select(Leeftijd_label, WijkenEnBuurten_label, Gemeentenaam, ErvarenGezondheidGoedZeerGoed:BrozeGezondheidSocialeDomein) %>%
+  select(Leeftijd_label, WijkenEnBuurten_label, Gemeentenaam, ErvarenGezondheidGoedZeerGoed:OvermatigeDrinker) %>%
   rename(Buurt=WijkenEnBuurten_label) %>%
-  mutate(across(ErvarenGezondheidGoedZeerGoed:BrozeGezondheidSocialeDomein, ~.x/100))
+  mutate(across(ErvarenGezondheidGoedZeerGoed:OvermatigeDrinker, ~.x/100))
 
 displaydata = gezondheid.nog %>%
   filter(Leeftijd_label == "18 jaar of ouder") %>%
@@ -834,7 +865,8 @@ addWorksheet(wb, "Migranten")
 
 png(graphname("herkomst_migranten"))
 print(ggplot(perc.migr %>%
-               filter(Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "AziC+", "OceaniC+")) %>%
+               # lelijke codes omdat R niet om kan gaan met de ë in Azië; hier staat Nederland, Europa excl. NL, Afrika, Amerika, Azië, Oceanië
+               filter(RegioS_label == gemeentenaam, Herkomstland %in% c("1012600", "H007933", "H008519", "H008520", "H008524", "H008531")) %>% 
                group_by(Herkomstland_label) %>%
                summarize(n=sum(n, na.rm=T), Bevolking_1=sum(Bevolking_1, na.rm=T)) %>%
                mutate(perc=n/Bevolking_1*100,
@@ -851,7 +883,7 @@ insertImage(wb, "Migranten", graphname("herkomst_migranten"), startRow=2, startC
 
 png(graphname("herkomst_migranten_gesplitst"), width=800, height=500)
 print(ggplot(perc.migr %>%
-               filter(Herkomstland_label %in% c("Nederland", "Europa (exclusief Nederland)", "Afrika", "Amerika", "AziC+", "OceaniC+")) %>%
+               filter(Herkomstland %in% c("1012600", "H007933", "H008519", "H008520", "H008524", "H008531")) %>%
                mutate(perc_label = sprintf("%0.1f%%", perc)),
              aes(x=RegioS_label, y=perc, fill=Herkomstland_label)) +
         geom_col(position="dodge") +
@@ -909,11 +941,6 @@ insertImage(wb, "Opleiding", graphname("opleiding_heatmap"), startRow=2, startCo
 
 # vaccinatiegraad
 addWorksheet(wb, "Vaccinaties")
-
-vacc.graad.nog = vacc.graad %>%
-  group_by(Vaccinaties, Vaccinaties_label, Jaar) %>%
-  summarize(across(where(is.numeric), ~sum(.x))) %>%
-  mutate(Vaccinatiegraad=Gevaccineerden/Populatie*100)
 
 ylim = vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties %in% c("A028769", "A028770", "A028771", "A028772")]
 ylim = ylim[!is.na(ylim)]
@@ -1005,7 +1032,18 @@ dev.off()
 insertImage(wb, "Vaccinaties", graphname("vacc_heatmap"), startRow=27, startCol=1, width=5, height=5)
 
 addWorksheet(wb, "Vaccinaties data")
-setColWidths(wb, "Vaccinaties data", cols=1:2, widths=30)  
+setColWidths(wb, "Vaccinaties data", cols=1, widths=30)  
+
+displaydata = vacc.graad.nog %>%
+  select(Vaccinaties_label, Jaar, Vaccinatiegraad) %>%
+  rename(Vaccinatie=Vaccinaties_label) %>%
+  mutate(Vaccinatiegraad=Vaccinatiegraad/100) %>%
+  pivot_wider(names_from="Jaar", values_from="Vaccinatiegraad")
+writeData(wb, "Vaccinaties data", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+addStyle(wb, "Vaccinaties data", percStyle, cols=2:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
+
+addWorksheet(wb, "Vaccinaties data gemeenten")
+setColWidths(wb, "Vaccinaties data gemeenten", cols=1:2, widths=30)  
 
 displaydata = vacc.graad %>%
   select(RegioS_label, Vaccinaties_label, Jaar, Vaccinatiegraad) %>%
@@ -1013,8 +1051,8 @@ displaydata = vacc.graad %>%
   mutate(Vaccinatiegraad=Vaccinatiegraad/100) %>%
   rename(Gemeente=RegioS_label) %>%
   pivot_wider(names_from="Jaar", values_from="Vaccinatiegraad")
-writeData(wb, "Vaccinaties data", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
-addStyle(wb, "Vaccinaties data", percStyle, cols=2:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
+writeData(wb, "Vaccinaties data gemeenten", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
+addStyle(wb, "Vaccinaties data gemeenten", percStyle, cols=2:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
 
 # gezondheid
 addWorksheet(wb, "Gezondheid")
@@ -1022,7 +1060,7 @@ setColWidths(wb, "Gezondheid", cols=1, widths=20)
 
 displaydata = gezondheid.gemeentes %>%
   filter(Leeftijd_label == "18 jaar of ouder") %>%
-  select(Gemeentenaam, EenOfMeerLangdurigeAandoeningen:BeperkingInBewegen) %>%
+  select(Gemeentenaam, EenOfMeerLangdurigeAandoeningen:SociaalEenzaam) %>%
   mutate(across(where(is.numeric), ~.x/100))
 writeData(wb, "Gezondheid", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
 addStyle(wb, "Gezondheid", percStyle, cols=2:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
@@ -1033,7 +1071,7 @@ setColWidths(wb, "Verschillen per buurt", cols=1, widths=20)
 
 inwoners.nog = inwoners.buurt %>%
   select(-WijkenEnBuurten) %>%
-  mutate(across(Mannen:OverigNietWesters, ~.x/AantalInwoners),
+  mutate(across(Mannen:BuitenEuropa, ~.x/AantalInwoners),
          Koopwoningen=Koopwoningen/100,
          HuurwoningenTotaal=HuurwoningenTotaal/100, # dit zijn al percentages
          Laag=Laag/(Laag+Middelbaar+Hoog),
@@ -1058,7 +1096,7 @@ colnames(displaydata) = c("M", "V")
 rownames(displaydata) = str_replace(zorgkosten.leeftijd$leeftijdsklasse[1:19], " jaar", "")
 
 png(graphname("zorgkosten"))
-barplot(t(displaydata), main="Zorgkosten per persoon per jaar", ylab="Kosten (b,)", beside=T, col=nog_colors[1:2],
+barplot(t(displaydata), main="Zorgkosten per persoon per jaar", ylab="Kosten (€)", beside=T, col=nog_colors[1:2],
         legend.text=c("Mannen", "Vrouwen"), args.legend=c(x="topleft"), las=2)
 dev.off()
 insertImage(wb, "Zorgkosten", graphname("zorgkosten"), startRow=2, startCol=2, width=5, height=5)
@@ -1075,7 +1113,7 @@ kaartdata = kaartdata.gemeente %>% filter(statnaam %in% displaydata$gemeentenaam
   left_join(displaydata, by=c("statnaam"="gemeentenaam"))
 
 png(graphname("zorgkosten_kaart"))
-print(kaart(kaartdata, var="Bedrag", title="Gemiddelde zorgkosten p.p.p.j.", legend.title="Bedrag (b,)"))
+print(kaart(kaartdata, var="Bedrag", title="Gemiddelde zorgkosten p.p.p.j.", legend.title="Bedrag (€)"))
 dev.off()
 insertImage(wb, "Zorgkosten", graphname("zorgkosten_kaart"), startRow=2, startCol=8, width=5, height=5)
 
