@@ -19,7 +19,7 @@ bestanden_verwijderen_na_afloop = T
 # "../data" betekent één map omhoog en dan de map data
 # LET OP: Windows werkt met een backward slash (C:\Gebruikers\Blabla), in R moet dit ofwel een forward slash zijn (C:/Gebruikers/Blabla)
 # of verdubbeld worden (C:\\Gebruikers\\Blabla)
-datamap = "./"
+datamap = "./data/"
 # map waar de bestanden geplaatst moeten worden
 # LET OP: slash vs. backslash, gelijk aan opmerking hierboven
 # zet op NA voor uitvoer in datamap
@@ -50,7 +50,7 @@ if (!is.na(uitvoermap) && !str_ends(uitvoermap, "\\\\") && !str_ends(uitvoermap,
 }
 
 # doorlopen bestanden in de datamap
-files = list.files("./", pattern=".*?\\.xlsx")
+files = list.files(datamap, pattern=".*?\\.xlsx")
 handled_files = c()
 output_files = c()
 
