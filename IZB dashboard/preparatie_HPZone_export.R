@@ -50,7 +50,7 @@ if (!is.na(uitvoermap) && !str_ends(uitvoermap, "\\\\") && !str_ends(uitvoermap,
 }
 
 # doorlopen bestanden in de datamap
-files = list.files(datamap, pattern=".*?\\.xlsx")
+files = list.files("./", pattern=".*?\\.xlsx")
 handled_files = c()
 output_files = c()
 
