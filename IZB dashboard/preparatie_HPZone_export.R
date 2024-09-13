@@ -174,7 +174,9 @@ for (file in files) {
              agent, infectie, diagnose, diagnosezekerheid, antibioticaresistentie, buitenland,
              eersteziektedag, context, ziekenhuisopname, overlijden, vaccinatie, vaccinatiedatum,
              gemeld, statusmelding, medewerker, casemanager) %>%
-      rename(postcode=PC)
+      rename(postcode=PC) %>%
+      # missende geboortedatum wordt aangegeven met datum 01-01-1900, dus als de leeftijd gelijk is aan (rapportjaar) - 1900 is deze eigenlijk missend
+      mutate(leeftijd=ifelse(as.numeric(leeftijd) >= year(peildatum) - 1900, NA, as.numeric(leeftijd)))
     
     write.csv(data, sprintf("export_cases_%s.csv", startdatum), na="", row.names=F)
     handled_files = c(handled_files, file)
