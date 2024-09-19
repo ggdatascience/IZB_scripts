@@ -37,6 +37,7 @@ Vanuit het RIVM worden jaarlijks vaccinatiecijfers per postcode 4 gedeeld. Dit s
 
 ## veehouderijen_grafieken.R
 Om overzicht te krijgen in de verhouding tussen bevolkingsdichtheid en dierenaantallen produceert dit script per type dier een kaart die het totale aantal en het relatieve aantal dieren weergeeft.
-![bevolkingsdichtheid KON](https://github.com/user-attachments/assets/cf1c911d-8151-4d97-851c-5dfd59323f6c) ![KON_Rundvee](https://github.com/user-attachments/assets/3d299d6e-e437-445f-b9c2-2485c9b7e0a6)
+![bevolkingsdichtheid NL](https://github.com/user-attachments/assets/266b9c9a-ebfd-4c80-bb96-681f69212a97)
+![NL_Rundvee](https://github.com/user-attachments/assets/787d0f58-6436-4ad3-b065-2386d6c08102)
 
 
