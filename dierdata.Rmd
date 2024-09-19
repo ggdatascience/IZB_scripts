@@ -1,0 +1,67 @@
+---
+title: "Visualisatie dierdata 2021"
+author: "Aart Dijkstra"
+date: "2024-04-23"
+output: html_document
+---
+
+```{r echo=F}
+suppressPackageStartupMessages(library(tidyverse))
+library(lubridate)
+suppressPackageStartupMessages(library(sf))
+library(leaflet)
+
+printf = function (...) cat(paste(sprintf(...),"\n"))
+
+# GGD NOG kleuren
+nog_colors = c("#1D1756", "#D1005D", "#2F6594", "#D3DFF1", "#FFBDDB")
+nog_palette = c("#FAE6EF","#F6CCDF","#ED99BE","#E3669E","#D1005D")
+
+#kaartdata = st_read("../../../Documenten - NOG W Openbare data/Kaarten/pc4_arcgis.shp")
+
+data = st_read("GIS_bestand_LBT2021_gpkg/LBT_2021.gpkg") %>% st_transform(4326) %>% st_centroid()
+```
+
+```{r echo=F, fig.width=10, fig.height=10}
+# fancy manier om aantal dieren weer te geven ipv aantal adressen
+# options.n wordt meegegeven in addCircleMarkers
+iconFunction = JS("function (cluster) {    
+    var markers = cluster.getAllChildMarkers();
+    var sum = 0; 
+    for (i = 0; i < markers.length; i++) {
+      sum += Number(markers[i].options.n);
+    }
+    
+    var c = ' marker-cluster-';
+        if (sum < 50) {
+            c += 'small';
+        } else if (sum < 200) {
+            c += 'medium';
+        } else {
+            c += 'large';
+        }
+
+        return new L.DivIcon({ html: '<div><span>' + sum + ' <span aria-label=\"markers\"></span>' + '</span></div>', className: 'marker-cluster' + c, iconSize: new L.Point(40, 40) });
+}")
+
+kaart = leaflet() %>%
+  addTiles()
+
+groepen = c("Rundvee", "Geiten", "Schapen", "Paarden_ponys_ezels", "Varkens", "Kippen", "Konijnen")
+for (var in groepen) {
+  data$label = sprintf("%s (%s) - %.0f %s", data$woonplaats, data$gemeente, data[[var]], str_to_lower(var))
+  data$popup = sprintf("%s %d<br>%s %s (gemeente %s)<br>Aantal: %.0f<br>Type bedrijf: %s", data$straat, data$hnr, data$pc6, data$woonplaats, data$gemeente, data[[var]], data$Type_BedrVest)
+  kaart = kaart %>%
+    addCircleMarkers(data=data,
+                     radius=as.formula(paste0("~", var, "/10")),
+                     label=~label,
+                     popup=~popup,
+                     options=markerOptions(n=as.formula(paste0("~", var))),
+                     clusterOptions=markerClusterOptions(iconCreateFunction=iconFunction),
+                     group=var)
+}
+kaart %>%
+  #hideGroup(groepen[-1]) %>%
+  addLayersControl(baseGroups=groepen)
+```
+
