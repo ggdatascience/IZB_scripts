@@ -9,6 +9,11 @@ De databasebestanden en een voorbeeldindeling van de agents/infections/diagnoses
 ## data_nivel.R
 Het Nivel publiceert wekelijks cijfers van de eerstelijns zorgregistraties per GGD in PDF-formaat. Dit script zet deze publicaties om in bruikbare tabellen binnen R. Let op: voor de opslag wordt een interne onderzoeksdatabase gebruikt; de datastructuur is los toegevoegd in data_nivel.sql.
 
+## dierdata.Rmd
+Op basis van de dierdata van het RIVM produceert dit bestand een interactieve kaart, waarop ingezoomd kan worden tot op bedrijfsniveau per type dier. Hiermee is een regionaal overzicht van de veehouderijen inzichtelijk te maken.
+![afbeelding](https://github.com/user-attachments/assets/74a15bde-7ab2-4cbe-b5ce-2eea4c1de6fe)
+
+
 ## download bevolking.R
 De tabel met inwonersaantallen was in augustus en september 2023 niet meer direct op te vragen via de OData-feed van het CBS. Deze kon toen alleen in zijn geheel worden gedownload. Dit is veel te groot voor dagelijks gebruik, waardoor een kleine export handiger is. Deze kan worden gemaakt met dit script. Uitvoeren is echter bijzonder intensief, waardoor de meeste GGD-computers deze niet uit kunnen voeren. Het is dan ook alleen als laatste redmiddel bedoeld.
 
@@ -29,3 +34,9 @@ Er wordt regelmatig gevraagd om grafieken van de vaccinatiegraad in een bepaalde
 
 ## vaccinatiegraad per pc4 en wijk.R
 Vanuit het RIVM worden jaarlijks vaccinatiecijfers per postcode 4 gedeeld. Dit script maakt een aantal handige weergaven van deze cijfers, waaronder een zoombare kaart met postcodes en percentages, verloop over jaren, en een kaart met het verschil tussen de laatste twee jaar.
+
+## veehouderijen_grafieken.R
+Om overzicht te krijgen in de verhouding tussen bevolkingsdichtheid en dierenaantallen produceert dit script per type dier een kaart die het totale aantal en het relatieve aantal dieren weergeeft.
+![bevolkingsdichtheid KON](https://github.com/user-attachments/assets/cf1c911d-8151-4d97-851c-5dfd59323f6c) ![KON_Rundvee](https://github.com/user-attachments/assets/3d299d6e-e437-445f-b9c2-2485c9b7e0a6)
+
+
