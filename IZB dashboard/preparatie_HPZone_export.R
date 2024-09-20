@@ -64,7 +64,10 @@ for (file in files) {
       filename = paste0(dirname(this.path()), "/", file) %>%
         str_replace_all(fixed("/"), "\\") # het omzetscript wil een pad met \, R geeft /
       system(sprintf("excelsave.bat \"%s\" ", filename))
-      data = read_excel(paste0("./", file))
+      Sys.sleep(2)
+      printf("Poging 2 wordt gestart. Mocht er zo een foutmelding verschijnen (Column `mdw_id` doesn't exist.), voer dan het script opnieuw uit.")
+      # vanuit deze functie moeten we assign gebruiken, omdat anders de variabele data alleen lokaal wordt overschreven
+      assign("data", read_excel(paste0("./", file)), envir=.GlobalEnv)
     }
     else
       print(e)
