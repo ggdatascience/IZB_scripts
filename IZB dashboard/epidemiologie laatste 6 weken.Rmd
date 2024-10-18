@@ -40,111 +40,21 @@ suppressPackageStartupMessages(library(sf))
 library(leaflet)
 library(htmltools)
 library(xtable)
+library(ggdnog)
 
 options(xtable.comment = FALSE,
         xtable.type="html",
         xtable.html.table.attributes="border=0")
 
-printf = function (...) cat(paste(sprintf(...),"\n"))
+#printf = function (...) cat(paste(sprintf(...),"\n"))
 
 # GGD NOG kleuren
-nog_colors = c("#1D1756", "#D1005D", "#2F6594", "#D3DFF1", "#FFBDDB")
-nog_palette = c("#FAE6EF","#F6CCDF","#ED99BE","#E3669E","#D1005D")
+#nog_colors = c("#1D1756", "#D1005D", "#2F6594", "#D3DFF1", "#FFBDDB")
+#nog_palette = c("#FAE6EF","#F6CCDF","#ED99BE","#E3669E","#D1005D")
 
-kaartdata = st_read("../../../Documenten - NOG W Openbare data/Kaarten/pc4_arcgis.shp")
+kaartdata = st_read(paste0(dir_maps(), "pc4_arcgis.shp"))
 
 conn = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0\\odbnog", Database="HPZone")
-
-freq.table = function (..., is.list=F, is.table=F, row.prop=T, col.prop=T) {
-  if (is.table) {
-    result = as_tibble(...)
-    
-    # eerste kolom wordt rijnamen, daarna omzetten naar matrix
-    tmp = result
-    result = as.matrix(result[,-1])
-    rownames(result) = as.character(tmp[[1]])
-  } else if (is.list) {
-    vars = list(...)
-    full.set = lapply(vars, freq.table)
-    names(full.set) = sapply(..., deparse)
-    
-    return(full.set)
-  }
-  else result = table(...)
-  if (all(dim(result) == 0)) return(data.frame(NA))
-  ret = result
-  if (length(dim(result)) == 1) {
-    # geen rijen of kolommen, alleen een lijst
-    prop = proportions(result)*100
-    tmp = as.data.frame(matrix(nrow = length(ret)+1, ncol=2))
-    tmp[1:(nrow(tmp)-1),seq(from=1,to=ncol(tmp)-1,by=2)] = ret
-    tmp[1:(nrow(tmp)-1),seq(from=2,to=ncol(tmp),by=2)] = sprintf("%.2f%%", prop)
-    ret = tmp
-    ret[nrow(ret),1] = sum(ret[,1], na.rm=T)
-    rownames(ret) = c(names(result), "Totaal")
-    colnames(ret) = c("n", "Perc")
-    return(ret)
-  }
-  
-  # totalen bewaren voor later
-  totals.row = rowSums(ret)
-  totals.col = colSums(ret)
-  
-  if (row.prop) {
-    prop = proportions(result, margin=2)*100
-    tmp = as.data.frame(matrix(nrow = (nrow(result)*2)+1, ncol=ncol(ret)))
-    tmp[seq(from=1,to=nrow(tmp)-2,by=2),] = ret
-    tmp[seq(from=2,to=nrow(tmp)-1,by=2),] = sprintf("%.2f%%", prop)
-    ret = tmp
-  }
-  if (col.prop) {
-    prop = proportions(result, margin=1)*100
-    tmp = as.data.frame(matrix(nrow = nrow(ret), ncol=(ncol(ret)*2)+1))
-    tmp[,seq(from=1,to=ncol(tmp)-1,by=2)] = ret
-    if (row.prop) {
-      # als hierboven rijen zijn ingevoegd moeten die rijen worden overgeslagen
-      # bij het invoeren van de nieuwe waardes
-      # praktisch betekent dit een lege regel tussen iedere waarde
-      tmp[seq(from=1,to=nrow(tmp)-1,by=2),seq(from=2,to=ncol(tmp),by=2)] = sprintf("%.2f%%", prop)
-    }
-    else {
-      tmp[,seq(from=2,to=ncol(tmp)-1,by=2)] = sprintf("%.2f%%", prop)
-    }
-    ret = tmp
-  }
-  
-  # col-/rownames pas aan het einde toevoegen; bij het aanmaken van tmp gaan die
-  # telkens verloren
-  if (row.prop) {
-    rownames(ret) = sprintf("tmp%d", 1:nrow(ret))
-    rownames(ret)[seq(from=1,to=nrow(ret)-2,by=2)] = rownames(result)
-    rownames(ret)[seq(from=2,to=nrow(ret)-1,by=2)] = sprintf("P%d", 1:(nrow(ret)/2))
-  }
-  else {
-    rownames(ret) = rownames(result)
-  }
-  if (col.prop) {
-    colnames(ret)[seq(from=1,to=ncol(ret)-2,by=2)] = colnames(result)
-    colnames(ret)[seq(from=2,to=ncol(ret)-1,by=2)] = sprintf("P%d", 1:(ncol(ret)/2))
-  }
-  else {
-    colnames(ret) = colnames(result)
-  }
-  
-  # totalen toevoegen
-  ret[nrow(ret),seq(from=1,to=ncol(ret)-1,by=2)] = totals.col
-  ret[nrow(ret),seq(from=2,to=ncol(ret)-1,by=2)] = sprintf("%.2f%%", proportions(totals.col)*100)
-  rownames(ret)[nrow(ret)] = "Totaal"
-  ret[seq(from=1,to=nrow(ret)-1,by=2),ncol(ret)] = totals.row
-  ret[seq(from=2,to=nrow(ret)-1,by=2),ncol(ret)] = sprintf("%.2f%%", proportions(totals.row)*100)
-  colnames(ret)[ncol(ret)] = "Totaal"
-  
-  test = suppressWarnings(chisq.test(result))
-  
-  ret[nrow(ret),ncol(ret)] = sprintf("p = %0.3e", test$p.value)
-  
-  return(ret)
-}
 ```
 
 ```{r}
@@ -201,7 +111,7 @@ ggplotly(ggplot(cases %>% filter(diagnosezekerheid != "Discarded"), aes(x=peilda
 
 ## Overzicht per groep
 ```{r}
-infecties = unique(cases$groep)
+infecties = unique(cases$groep) %>% sort()
 infecties_sql = glue_sql("{infecties*}", .con=conn)
 beginjaar = year(startdatum) - 5
 ```
@@ -227,6 +137,10 @@ for (inf in infecties) {
     geom_col(aes(fill=factor(jaar)), position="dodge") +
     labs(title="Verloop meldingen over tijd", subtitle=inf, x="Maand", y="Aantal", fill="Jaar") +
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13)))
+  cat("\n")
+  print(ggplot(cases.historisch %>% filter(groep == inf) %>% mutate(peildatum=ymd(sprintf("%d-%d-1", jaar, maand))), aes(x=peildatum, y=n)) +
+    geom_col(position="dodge", fill=nog_colors[1]) +
+    labs(title="Verloop meldingen over tijd", subtitle=inf, x="Datum", y="Aantal"))
   cat("\n")
   print(xtable(cases.historisch %>% filter(groep == inf) %>% group_by(jaar) %>% summarize(n=sum(n))))
   cat("\n")
@@ -308,7 +222,7 @@ ggplotly(ggplot(situations, aes(y=scenario, fill=agent)) +
 
 ## Vergelijking met eerdere jaren
 ```{r}
-agents = unique(situations$agent)
+agents = unique(situations$agent) %>% sort()
 agent_sql = glue_sql("{agents*}", .con=conn)
 beginjaar = year(startdatum) - 5
 ```
@@ -325,8 +239,14 @@ for (ag in agents) {
   suppressWarnings(print(ggplot(situations.historisch %>% filter(agent == ag), aes(x=maand, y=n)) +
     geom_smooth() +
     geom_col(aes(fill=factor(jaar)), position="dodge") +
-    labs(title=ag, x="Maand", y="Aantal", fill="Jaar") +
+    labs(title="Verloop uitbraken over tijd", subtitle=ag, x="Maand", y="Aantal", fill="Jaar") +
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13))))
+  cat("\n")
+  print(ggplot(situations.historisch %>% filter(agent == ag) %>% mutate(peildatum=ymd(sprintf("%d-%d-1", jaar, maand))), aes(x=peildatum, y=n)) +
+    geom_col(position="dodge", fill=nog_colors[1]) +
+    labs(title="Verloop uitbraken over tijd", subtitle=ag, x="Datum", y="Aantal"))
+  cat("\n")
+  print(xtable(situations.historisch %>% filter(agent == ag) %>% group_by(jaar) %>% summarize(n=sum(n))))
   cat("\n\n")
 }
 ```
@@ -362,9 +282,14 @@ ggplotly(ggplot(enquiries, aes(x=startdatum, fill=onderwerp)) +
   labs(x="Aantal", y="Type", title="Aantal telefonische vragen", fill="Verwekker"))
 ```
 
+## Vragen over vaccinaties
+```{r}
+freq.table(enquiries$onderwerpopen[enquiries$onderwerp == "Vaccinatie"])
+```
+
 ## Vergelijking met eerdere jaren
 ```{r}
-onderwerpen = unique(enquiries$onderwerp)
+onderwerpen = unique(enquiries$onderwerp) %>% sort()
 onderwerpen_sql = glue_sql("{onderwerpen*}", .con=conn)
 beginjaar = year(startdatum) - 5
 ```
@@ -381,8 +306,14 @@ for (ond in onderwerpen) {
   suppressWarnings(print(ggplot(enquiries.historisch %>% filter(onderwerp == ond), aes(x=maand, y=n)) +
     geom_smooth() +
     geom_col(aes(fill=factor(jaar)), position="dodge") +
-    labs(title=ond, x="Maand", y="Aantal", fill="Jaar") +
+    labs(title="Verloop vragen over tijd", subtitle=ond, x="Maand", y="Aantal", fill="Jaar") +
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13))))
+  cat("\n")
+  print(ggplot(enquiries.historisch %>% filter(onderwerp == ond) %>% mutate(peildatum=ymd(sprintf("%d-%d-1", jaar, maand))), aes(x=peildatum, y=n)) +
+    geom_col(position="dodge", fill=nog_colors[1]) +
+    labs(title="Verloop vragen over tijd", subtitle=ond, x="Datum", y="Aantal"))
+  cat("\n")
+  print(xtable(enquiries.historisch %>% filter(onderwerp == ond) %>% group_by(jaar) %>% summarize(n=sum(n))))
   cat("\n\n")
 }
 ```
@@ -395,7 +326,7 @@ freq.table(enquiries$onderwerp, enquiries$status)
 
 
 # Geografische spreiding
-```{r fig.width=12}
+```{r fig.width=12, fig.height=8}
 casespalette = colorFactor("Set1", cases$groep)
 
 inf_groepen = sort(unique(cases$groep))
@@ -409,7 +340,8 @@ sf_use_s2(FALSE)
 
 for (inf_groep in inf_groepen) {
   inf_cases = cases %>%
-    filter(groep == inf_groep)
+    filter(groep == inf_groep) %>%
+    mutate(postcode=ifelse(postcode < 1000, NA, postcode))
   if (all(is.na(inf_cases$postcode))) next
   inf_cases = inf_cases %>%
     mutate(postcode=as.character(postcode),

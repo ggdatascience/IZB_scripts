@@ -156,7 +156,7 @@ NullOrQuotes = function (val) {
       
       medewerkers.missend = medewerkers.hpzone[!medewerkers.hpzone %in% medewerkers.db$mdw_naam]
       if (length(medewerkers.missend) > 0)
-        dbSendQuery(conn, paste0("INSERT INTO [dbo].[hpz_medewerker](mdw_naam) VALUES", str_c(sprintf("(%s)", dbQuoteString(conn, medewerkers.missend)), collapse=", ")))
+        dbExecute(conn, paste0("INSERT INTO [dbo].[hpz_medewerker](mdw_naam) VALUES", str_c(sprintf("(%s)", dbQuoteString(conn, medewerkers.missend)), collapse=", ")))
       
       medewerkers.db = dbGetQuery(conn, "SELECT * FROM [dbo].[hpz_medewerker]")
       
@@ -280,9 +280,9 @@ NullOrQuotes = function (val) {
                          NullOrQuotes(data.existing$mdw_id), NullOrQuotes(data.existing$casemdw_id), NullOrQuotes(data.existing$ABR), data.existing$`Case Number`)
         
         for (i in seq(1, length(update), 500)) {
-          res = dbExecute(conn, paste0("BEGIN TRANSACTION;
-      ", str_c(update[i:min(length(update),i+499)], collapse=";\n"), "
-               COMMIT TRANSACTION;"))
+          dbBegin(conn)
+          res = dbExecute(conn, str_c(update[i:min(length(update),i+499)], collapse=";\n"))
+          dbCommit(conn)
           
           printf("%d rijen aangepast.", length(i:min(length(update),i+499)))
         }
@@ -300,10 +300,11 @@ NullOrQuotes = function (val) {
       if (length(insert) > 0) {
         # opbreken in blokjes van 500, zodat niet alles direct pijn doet
         for (i in seq(1, length(insert), 500)) {
-          res = dbExecute(conn, paste0("BEGIN TRANSACTION;
-      INSERT INTO casus(hpzone_id, peildatum, melddatum, meldorganisatie, geslacht, leeftijd, postcode, agent, infectie, diagnose,
-               diagnosezekerheid, antibioticaresistentie, buitenland, eersteziektedag, context, ziekenhuisopname, overlijden, vaccinatie, vaccinatiedatum, gemeld, statusmelding, medewerker, casemanager, created) VALUES", str_c(insert[i:min(length(insert),i+499)], collapse=", "), ";
-               COMMIT TRANSACTION;"))
+          dbBegin(conn)
+          res = dbExecute(conn, paste0("INSERT INTO casus(hpzone_id, peildatum, melddatum, meldorganisatie, geslacht, leeftijd, postcode, agent, infectie, diagnose,
+               diagnosezekerheid, antibioticaresistentie, buitenland, eersteziektedag, context, ziekenhuisopname, overlijden, vaccinatie,
+                                       vaccinatiedatum, gemeld, statusmelding, medewerker, casemanager, created) VALUES", str_c(insert[i:min(length(insert),i+499)], collapse=", ")))
+          dbCommit(conn)
           printf("%d rijen toegevoegd.", res)
         }
       }
@@ -334,7 +335,7 @@ NullOrQuotes = function (val) {
       
       scenario.missend = scenario.hpzone[!scenario.hpzone %in% scenario.db$sc_naam]
       if (length(scenario.missend) > 0)
-        dbSendQuery(conn, paste0("INSERT INTO [dbo].[hpz_scenario](sc_naam) VALUES", str_c(sprintf("(%s)", dbQuoteString(conn, scenario.missend)), collapse=", ")))
+        dbExecute(conn, paste0("INSERT INTO [dbo].[hpz_scenario](sc_naam) VALUES", str_c(sprintf("(%s)", dbQuoteString(conn, scenario.missend)), collapse=", ")))
       
       scenario.db = dbGetQuery(conn, "SELECT * FROM [dbo].[hpz_scenario]")
       
@@ -393,9 +394,9 @@ NullOrQuotes = function (val) {
                          data.existing$`Identification Number (Internal)`)
         
         for (i in seq(1, length(update), 500)) {
-          res = dbExecute(conn, paste0("BEGIN TRANSACTION;
-      ", str_c(update[i:min(length(update),i+499)], collapse=";\n"), "
-               COMMIT TRANSACTION;"))
+          dbBegin(conn)
+          res = dbExecute(conn, str_c(update[i:min(length(update),i+499)], collapse=";\n"))
+          dbCommit(conn)
           
           printf("%d rijen aangepast.", length(i:min(length(update),i+499)))
         }
@@ -413,11 +414,11 @@ NullOrQuotes = function (val) {
       if (length(insert) > 0) {
         # opbreken in blokjes van 500, zodat niet alles direct pijn doet
         for (i in seq(1, length(insert), 500)) {
-          res = dbExecute(conn, paste0("BEGIN TRANSACTION;
-      INSERT INTO situatie(hpzone_id, datum, invoerdatum, status, type, agent, scenario, zekerheid,
+          dbBegin(conn)
+          res = dbExecute(conn, paste0("INSERT INTO situatie(hpzone_id, datum, invoerdatum, status, type, agent, scenario, zekerheid,
                 risiconiveau, artikel26, context, postcode, melding, medewerker, manager,
-                aantal_symptomatisch, aantal_risico, aantal_ziekenhuis, aantal_overleden, created) VALUES", str_c(insert[i:min(length(insert),i+499)], collapse=", "), ";
-               COMMIT TRANSACTION;"))
+                aantal_symptomatisch, aantal_risico, aantal_ziekenhuis, aantal_overleden, created) VALUES", str_c(insert[i:min(length(insert),i+499)], collapse=", ")))
+          dbCommit(conn)
           printf("%d rijen toegevoegd.", res)
         }
       }
@@ -433,7 +434,7 @@ NullOrQuotes = function (val) {
       
       medewerkers.missend = medewerkers.hpzone[!medewerkers.hpzone %in% medewerkers.db$mdw_naam]
       if (length(medewerkers.missend) > 0)
-        dbSendQuery(conn, paste0("INSERT INTO [dbo].[hpz_medewerker](mdw_naam) VALUES", str_c(sprintf("(%s)", dbQuoteString(conn, medewerkers.missend)), collapse=", ")))
+        dbExecute(conn, paste0("INSERT INTO [dbo].[hpz_medewerker](mdw_naam) VALUES", str_c(sprintf("(%s)", dbQuoteString(conn, medewerkers.missend)), collapse=", ")))
       
       medewerkers.db = dbGetQuery(conn, "SELECT * FROM [dbo].[hpz_medewerker]")
       
@@ -486,9 +487,9 @@ NullOrQuotes = function (val) {
                          data.existing$Number)
         
         for (i in seq(1, length(update), 500)) {
-          res = dbExecute(conn, paste0("BEGIN TRANSACTION;
-      ", str_c(update[i:min(length(update),i+499)], collapse=";\n"), ";
-               COMMIT TRANSACTION;"))
+          dbBegin(conn)
+          res = dbExecute(conn, str_c(update[i:min(length(update),i+499)], collapse=";\n"))
+          dbCommit(conn)
           
           printf("%d rijen aangepast.", length(i:min(length(update),i+499)))
         }
@@ -503,10 +504,10 @@ NullOrQuotes = function (val) {
       if (length(insert) > 0) {
         # opbreken in blokjes van 500, zodat niet alles direct pijn doet
         for (i in seq(1, length(insert), 500)) {
-          res = dbExecute(conn, paste0("BEGIN TRANSACTION;
-      INSERT INTO vraag(hpzone_id, startdatum, einddatum, ontvanger, medewerker, status, postcode, geslacht, typebeller, categorie, onderwerp,
-      onderwerpopen, created) VALUES", str_c(insert[i:min(length(insert),i+499)], collapse=", "), ";
-               COMMIT TRANSACTION;"))
+          dbBegin(conn)
+          res = dbExecute(conn, paste0("INSERT INTO vraag(hpzone_id, startdatum, einddatum, ontvanger, medewerker, status, postcode, geslacht, typebeller, categorie, onderwerp,
+      onderwerpopen, created) VALUES", str_c(insert[i:min(length(insert),i+499)], collapse=", ")))
+          dbCommit(conn)
           printf("%d rijen toegevoegd.", res)
         }
       }
@@ -515,11 +516,11 @@ NullOrQuotes = function (val) {
     printf("Verwerking %s afgerond.", file)
   }
   
-  dbDisconnect(conn)
-  
   printf("Omzetting naar bestanden voor het HSC dashboard wordt opgestart.")
   
   source("preparatie_HPZone_export.R")
   
   printf("Omzetting uitgevoerd.")
 }
+
+dbDisconnect(conn)
