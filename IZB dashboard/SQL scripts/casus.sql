@@ -27,6 +27,8 @@ CREATE TABLE [dbo].[casus](
 	[context] [smallint] NULL,
 	[ziekenhuisopname] [tinyint] NULL,
 	[overlijden] [date] NULL,
+	[vaccinatie] [nvarchar](50) NULL,
+	[vaccinatiedatum] [date] NULL,
 	[gemeld] [date] NULL,
 	[statusmelding] [nvarchar](50) NULL,
 	[medewerker] [smallint] NULL,
