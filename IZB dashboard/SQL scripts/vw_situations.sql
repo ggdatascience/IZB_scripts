@@ -14,7 +14,7 @@ SELECT        dbo.situatie.id, dbo.situatie.hpzone_id, dbo.situatie.datum, dbo.s
                          zgag.groep_meldingsplichtig AS agent_meldingsplichtig, dbo.hpz_scenario.sc_naam AS scenario, dbo.hpz_scenario.sc_groep AS scenario_groep, dbo.situatie.zekerheid, dbo.situatie.risiconiveau, 
                          dbo.situatie.artikel26, dbo.hpz_context.ctx_naam AS context, dbo.situatie.postcode, gem.gemeentecode, gem.gemeentenaam, dbo.situatie.melding, mdw_a.mdw_naam AS medewerker, 
                          mdw_b.mdw_naam AS casemanager, dbo.situatie.aantal_risico, dbo.situatie.aantal_symptomatisch, dbo.situatie.aantal_ziekenhuis, dbo.situatie.aantal_overleden, dbo.situatie.created, dbo.situatie.updated
-FROM            dbo.situatie INNER JOIN
+FROM            dbo.situatie LEFT OUTER JOIN
                          dbo.hpz_agent ON dbo.situatie.agent = dbo.hpz_agent.ag_id LEFT OUTER JOIN
                          dbo.infectieziekte AS zgag ON dbo.hpz_agent.ag_groep = zgag.groep_id LEFT OUTER JOIN
                          dbo.hpz_context ON dbo.situatie.context = dbo.hpz_context.ctx_id LEFT OUTER JOIN
