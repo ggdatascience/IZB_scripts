@@ -116,7 +116,7 @@ NullOrQuotes = function (val) {
     # enquiries worden soms gek geëxporteerd, waardoor R ze niet kan openen
     # er wordt dan geklaagd over iets van een unicodekarater
     # openen en opslaan in Excel lost dit op, maar is irritant; automatiseren!
-    tryCatch({ data = read_excel(paste0("./data/", file)) }, error=function(e) { 
+    tryCatch({ data = read_excel(paste0("./data/", file), guess_max=15000) }, error=function(e) { 
       if (str_detect(e$message, "Unicode")) {
         printf("Let op! Bestand %s kon niet geopend worden. Er wordt een poging gedaan om het bestand automatisch opnieuw op te slaan met Excel.", file)
         filename = paste0(dirname(this.path()), "/data/", file) %>%
@@ -125,7 +125,7 @@ NullOrQuotes = function (val) {
         Sys.sleep(2)
         printf("Poging 2 wordt gestart. Mocht er zo een foutmelding verschijnen (Column `mdw_id` doesn't exist.), voer dan het script opnieuw uit.")
         # vanuit deze functie moeten we assign gebruiken, omdat anders de variabele data alleen lokaal wordt overschreven
-        assign("data", read_excel(paste0("./data/", file)), envir=.GlobalEnv)
+        assign("data", read_excel(paste0("./data/", file), guess_max=15000), envir=.GlobalEnv)
       }
       else
         print(e)

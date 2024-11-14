@@ -14,7 +14,7 @@
 
 # configuratiemogelijkheden
 # wel of niet de Excelbestanden verwijderen na afloop? (T voor ja, F voor nee)
-bestanden_verwijderen_na_afloop = T
+bestanden_verwijderen_na_afloop = F
 # map waar de bestanden in staan - "./" is de map waarin het script zich bevindt
 # "../data" betekent één map omhoog en dan de map data
 # LET OP: Windows werkt met een backward slash (C:\Gebruikers\Blabla), in R moet dit ofwel een forward slash zijn (C:/Gebruikers/Blabla)
@@ -59,7 +59,7 @@ for (file in files) {
   # enquiries worden soms gek geëxporteerd, waardoor R ze niet kan openen
   # er wordt dan geklaagd over iets van een unicodekarater
   # openen en opslaan in Excel lost dit op, maar is irritant; automatiseren!
-  tryCatch({ data = read_excel(file) }, error=function(e) { 
+  tryCatch({ data = read_excel(file, guess_max=15000) }, error=function(e) { 
     if (str_detect(e$message, "Unicode")) {
       filename = paste0(dirname(this.path()), "/", file) %>%
         str_replace_all(fixed("/"), "\\") # het omzetscript wil een pad met \, R geeft /
@@ -67,7 +67,7 @@ for (file in files) {
       Sys.sleep(2)
       printf("Poging 2 wordt gestart. Mocht er zo een foutmelding verschijnen (Column `mdw_id` doesn't exist.), voer dan het script opnieuw uit.")
       # vanuit deze functie moeten we assign gebruiken, omdat anders de variabele data alleen lokaal wordt overschreven
-      assign("data", read_excel(paste0("./", file)), envir=.GlobalEnv)
+      assign("data", read_excel(paste0("./", file), guess_max=15000), envir=.GlobalEnv)
     }
     else
       print(e)
