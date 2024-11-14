@@ -14,7 +14,7 @@
 
 # configuratiemogelijkheden
 # wel of niet de Excelbestanden verwijderen na afloop? (T voor ja, F voor nee)
-bestanden_verwijderen_na_afloop = F
+bestanden_verwijderen_na_afloop = T
 # map waar de bestanden in staan - "./" is de map waarin het script zich bevindt
 # "../data" betekent één map omhoog en dan de map data
 # LET OP: Windows werkt met een backward slash (C:\Gebruikers\Blabla), in R moet dit ofwel een forward slash zijn (C:/Gebruikers/Blabla)
