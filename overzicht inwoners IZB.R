@@ -206,6 +206,13 @@ perc.migr = data.migr %>%
   left_join(totalen.migr %>% select(RegioS_label, Bevolking_1), by="RegioS_label") %>%
   mutate(perc=n/Bevolking_1*100)
 
+perc.migr.nog = data.migr %>%
+  filter(Leeftijd == "10000", Herkomstland != "T001040", Geboorteland == "T001638") %>% # alle herkomstlanden, maar geboorteland maakt niet uit
+  group_by(Herkomstland, Herkomstland_label) %>%
+  summarize(n=sum(Bevolking_1, na.rm=T)) %>%
+  bind_cols(totalen.migr %>% summarize(Bevolking_1=sum(Bevolking_1))) %>%
+  mutate(perc=n/Bevolking_1*100)
+
 ##
 ## vaccinatiegraad
 ##
@@ -228,7 +235,9 @@ vacc.graad.nog = vacc.graad.nog %>%
          Regio=str_trim(RegioS)) %>%
   rename(Populatie=Populatie_1) %>%
   mutate(Gevaccineerden=coalesce(GevaccineerdenZonderLeeftijdsgrens_4, GevaccineerdenMetLeeftijdsgrens_2), 
-         Vaccinatiegraad=coalesce(VaccinatiegraadZonderLeeftijdsgrens_5, VaccinatiegraadMetLeeftijdsgrens_3))
+         Vaccinatiegraad=coalesce(VaccinatiegraadZonderLeeftijdsgrens_5, VaccinatiegraadMetLeeftijdsgrens_3)) %>%
+  filter(!is.na(Vaccinatiegraad)) %>%
+  arrange(Jaar)
 
 ##
 ## gezondheid per buurt
@@ -251,7 +260,7 @@ colnames(gezondheid.gemeentes) = str_replace(colnames(gezondheid.buurt), "_\\d+$
 ##
 
 # deze is beschikbaar vanaf de website van Vektis: https://www.vektis.nl/open-data
-zorgkosten = read.csv("Vektis gemeente 2021.csv", sep=";")
+zorgkosten = read.csv("Vektis gemeente 2022.csv", sep=";")
 zorgkosten = zorgkosten %>%
   mutate(gemeentenaam=str_to_lower(gemeentenaam)) %>%
   left_join(gemeenten %>% select(Key, Title) %>% mutate(gemeentenaam=str_to_lower(Title)) %>% rename(Gemeentecode=Key, Gemeente=Title), by="gemeentenaam", keep=F) %>%
@@ -276,7 +285,7 @@ beroepen = cbs_get_data("84916NED", RegioS=str_trim(gemeenten$Key)) %>%
 ##
 graphname = function (naam) { return(sprintf("IZB overzicht/graphs/%s_%s.png", gemeentenaam, naam)) }
 
-bronnen = read.table(text=paste0("Element;Bron;Jaar\nOpleidingsniveau;CBS;2022\nKerncijfers wijken;CBS;2023\nInwonersaantallen;CBS;", jaar.inwoners, "\nMigranten en herkomst;CBS;", jaar.migranten, "\nGezondheid en leefstijl;RIVM;", jaar.gezondheid, "\nVaccinatiegraad;RIVM;", jaar.vacc, "\nZorgdeclaraties;Vektis;2021\nLevensverwachting;RIVM;2020"), header=T, sep=";")
+bronnen = read.table(text=paste0("Element;Bron;Jaar\nOpleidingsniveau;CBS;2022\nKerncijfers wijken;CBS;2023\nInwonersaantallen;CBS;", jaar.inwoners, "\nMigranten en herkomst;CBS;", jaar.migranten, "\nGezondheid en leefstijl;RIVM;", jaar.gezondheid, "\nVaccinatiegraad;RIVM;", jaar.vacc, "\nZorgdeclaraties;Vektis;2022\nLevensverwachting;RIVM;2020"), header=T, sep=";")
 
 ##
 ## overzichtssheet per gemeente
@@ -402,7 +411,13 @@ for (i in 1:nrow(gemeenten)) {
     filter(str_trim(Gemeentenaam) == gemeentenaam) %>%
     select(Leeftijd_label, WijkenEnBuurten_label, ErvarenGezondheidGoedZeerGoed:SociaalEenzaam) %>%
     rename(Buurt=WijkenEnBuurten_label) %>%
-    mutate(across(ErvarenGezondheidGoedZeerGoed:SociaalEenzaam, ~.x/100))
+    mutate(across(ErvarenGezondheidGoedZeerGoed:SociaalEenzaam, ~.x/100)) %>%
+    bind_rows(gezondheid.gemeentes %>%
+                filter(str_trim(Gemeentenaam) == gemeentenaam) %>%
+                select(Leeftijd_label, WijkenEnBuurten_label, ErvarenGezondheidGoedZeerGoed:SociaalEenzaam) %>%
+                rename(Buurt=WijkenEnBuurten_label) %>%
+                mutate(across(ErvarenGezondheidGoedZeerGoed:SociaalEenzaam, ~.x/100),
+                       Buurt="Gehele gemeente"))
   
   displaydata = gezondheid.gemeente %>%
     filter(Leeftijd_label == "18 jaar of ouder") %>%
@@ -463,7 +478,7 @@ for (i in 1:nrow(gemeenten)) {
   displaydata = perc.migr %>%
     filter(RegioS_label == gemeentenaam) %>%
     ungroup() %>%
-    select(-c(RegioS_label, Bevolking_1)) %>%
+    select(-c(RegioS_label, Herkomstland, Bevolking_1)) %>%
     rename(Regio=Herkomstland_label) %>%
     mutate(perc=perc/100)
   writeData(wb, "Migranten", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
@@ -531,7 +546,8 @@ for (i in 1:nrow(gemeenten)) {
   setColWidths(wb, "Vaccinaties", cols=1, widths=30)  
   
   vacc.graad.gemeente = vacc.graad %>%
-    filter(RegioS_label == gemeentenaam)
+    filter(RegioS_label == gemeentenaam, !is.na(Vaccinatiegraad)) %>%
+    arrange(Jaar)
   
   displaydata = vacc.graad.gemeente %>%
     select(Vaccinaties_label, Jaar, Vaccinatiegraad) %>%
@@ -548,7 +564,7 @@ for (i in 1:nrow(gemeenten)) {
   png(graphname("vacc_1"))
   plot(vacc.graad.gemeente$Jaar[vacc.graad.gemeente$Vaccinaties == "A028769"], # DKTP
        vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties == "A028769"],
-       type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (2 jr)", xlab="Jaar", ylab="Percentage (%)", ylim=c(min(ylim)-(ylim.diff), min(c(max(ylim)+(ylim.diff), 100)))) 
+       type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (2 jr)", xlab="Verslagjaar", ylab="Percentage (%)", ylim=c(min(ylim)-(ylim.diff), min(c(max(ylim)+(ylim.diff), 100)))) 
   grid(nx=NA, ny=NULL)
   par(new=T)
   lines(vacc.graad.gemeente$Jaar[vacc.graad.gemeente$Vaccinaties == "A028769"], # DKTP
@@ -567,7 +583,7 @@ for (i in 1:nrow(gemeenten)) {
   png(graphname("vacc_2"))
   plot(vacc.graad.gemeente$Jaar[vacc.graad.gemeente$Vaccinaties == "A028772"], # MenACWY
        vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties == "A028772"],
-       type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (2 jr)", xlab="Jaar", ylab="Percentage (%)", ylim=c(min(ylim)-(ylim.diff), min(c(max(ylim)+(ylim.diff), 100)))) 
+       type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (2 jr)", xlab="Verslagjaar", ylab="Percentage (%)", ylim=c(min(ylim)-(ylim.diff), min(c(max(ylim)+(ylim.diff), 100)))) 
   grid(nx=NA, ny=NULL)
   par(new=T)
   lines(vacc.graad.gemeente$Jaar[vacc.graad.gemeente$Vaccinaties == "A028772"], # MenACWY
@@ -582,13 +598,13 @@ for (i in 1:nrow(gemeenten)) {
   dev.off()
   insertImage(wb, "Vaccinaties", graphname("vacc_2"), startRow=nrow(displaydata)+3, startCol=6, width=5, height=5)
   
-  ylim = vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties %in% c("A028778", "A028779", "A028780", "A049175")]
+  ylim = vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties %in% c("A028778", "A028779", "A028780", "A049175", "A050956")]
   ylim = ylim[!is.na(ylim)]
   ylim.diff = max(ylim)-min(ylim)
   png(graphname("vacc_3"))
   plot(vacc.graad.gemeente$Jaar[vacc.graad.gemeente$Vaccinaties == "A028778"], # DKTP volledig
        vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties == "A028778"],
-       type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (12+ jr)", xlab="Jaar", ylab="Percentage (%)",
+       type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (10+ jr)", xlab="Verslagjaar", ylab="Percentage (%)",
        ylim=c(max(c(min(ylim)-(ylim.diff), 0)), min(c(max(ylim)+(ylim.diff), 100)))) 
   grid(nx=NA, ny=NULL)
   par(new=T)
@@ -598,8 +614,8 @@ for (i in 1:nrow(gemeenten)) {
         vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties == "A028779"], col=nog_colors[2], lwd=2)
   lines(vacc.graad.gemeente$Jaar[vacc.graad.gemeente$Vaccinaties == "A028780"], # HPV
         vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties == "A028780"], col=nog_colors[3], lwd=2)
-  lines(vacc.graad.gemeente$Jaar[vacc.graad.gemeente$Vaccinaties == "A049175"], # MenACWY
-        vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties == "A049175"], col=nog_colors[4], lwd=2)
+  lines(vacc.graad.gemeente$Jaar[vacc.graad.gemeente$Vaccinaties == "A050956" | vacc.graad.gemeente$Vaccinaties == "A049175"], # MenACWY + MenACWY eerdere cohorten 	
+        vacc.graad.gemeente$Vaccinatiegraad[vacc.graad.gemeente$Vaccinaties == "A050956" | vacc.graad.gemeente$Vaccinaties == "A049175"], col=nog_colors[4], lwd=2)
   legend("bottomleft", legend=c("DKTP", "BMR", "HPV", "MenACWY"), fill=nog_colors[1:4], bty="n")
   dev.off()
   insertImage(wb, "Vaccinaties", graphname("vacc_3"), startRow=nrow(displaydata)+3, startCol=13, width=5, height=5)
@@ -677,6 +693,8 @@ for (i in 1:nrow(gemeenten)) {
   zorgkosten.gemeente = zorgkosten %>%
     filter(Gemeentecode == gemeentecode) %>%
     select(-gemeentenaam, -Gemeentecode, -Gemeente)
+  zorgkosten.gemeente$totaal = rowSums(zorgkosten.gemeente[,5:ncol(zorgkosten.gemeente)])
+  zorgkosten.gemeente$totaal_pj = zorgkosten.gemeente$totaal / zorgkosten.gemeente$aantal_verzekerdejaren
   
   writeData(wb, "Zorgkosten data", zorgkosten.gemeente, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding", withFilter=T)
   addStyle(wb, "Zorgkosten data", geldStyle, cols=5:ncol(zorgkosten.gemeente), rows=2:(nrow(zorgkosten.gemeente)+1), gridExpand=T, stack=T)
@@ -795,6 +813,7 @@ print(tm_shape(kaartdata.gemeente) +
         tm_fill(col = "statnaam",
                 palette = nog_colors,
                 legend.show=F) +
+        tm_text("statnaam", size="AREA") +
         tm_layout(frame=F))
 dev.off()
 insertImage(wb, "Overzicht", graphname("kaart"), startRow=11, startCol=8, width=5, height=5)
@@ -803,16 +822,17 @@ insertImage(wb, "Overzicht", graphname("kaart"), startRow=11, startCol=8, width=
 addWorksheet(wb, "Leefstijl")
 setColWidths(wb, "Leefstijl", cols=1:20, widths=20)
 
-gezondheid.nog = gezondheid.buurt %>%
-  select(Leeftijd_label, WijkenEnBuurten_label, Gemeentenaam, ErvarenGezondheidGoedZeerGoed:OvermatigeDrinker) %>%
+gezondheid.nog = gezondheid.gemeentes %>%
+  select(Leeftijd_label, WijkenEnBuurten_label, ErvarenGezondheidGoedZeerGoed:OvermatigeDrinker) %>%
   rename(Buurt=WijkenEnBuurten_label) %>%
   mutate(across(ErvarenGezondheidGoedZeerGoed:OvermatigeDrinker, ~.x/100))
 
 displaydata = gezondheid.nog %>%
   filter(Leeftijd_label == "18 jaar of ouder") %>%
-  select(Gemeentenaam, Buurt, VoldoetAanBeweegrichtlijn:OvermatigeDrinker)
+  select(Buurt, VoldoetAanBeweegrichtlijn:OvermatigeDrinker) %>%
+  rename(Gemeente=Buurt)
 writeData(wb, "Leefstijl", displaydata, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
-addStyle(wb, "Leefstijl", percStyle, cols=3:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
+addStyle(wb, "Leefstijl", percStyle, cols=2:ncol(displaydata), rows=2:(nrow(displaydata)+1), gridExpand=T, stack=T)
 
 # leeftijden inwoners
 addWorksheet(wb, "Leeftijden")
@@ -864,9 +884,9 @@ insertImage(wb, "Leeftijden", graphname("leeftijden"), startRow=3, startCol=7, w
 addWorksheet(wb, "Migranten")
 
 png(graphname("herkomst_migranten"))
-print(ggplot(perc.migr %>%
+print(ggplot(perc.migr.nog %>%
                # lelijke codes omdat R niet om kan gaan met de ë in Azië; hier staat Nederland, Europa excl. NL, Afrika, Amerika, Azië, Oceanië
-               filter(RegioS_label == gemeentenaam, Herkomstland %in% c("1012600", "H007933", "H008519", "H008520", "H008524", "H008531")) %>% 
+               filter(Herkomstland %in% c("1012600", "H007933", "H008519", "H008520", "H008524", "H008531")) %>% 
                group_by(Herkomstland_label) %>%
                summarize(n=sum(n, na.rm=T), Bevolking_1=sum(Bevolking_1, na.rm=T)) %>%
                mutate(perc=n/Bevolking_1*100,
@@ -883,7 +903,8 @@ insertImage(wb, "Migranten", graphname("herkomst_migranten"), startRow=2, startC
 
 png(graphname("herkomst_migranten_gesplitst"), width=800, height=500)
 print(ggplot(perc.migr %>%
-               filter(Herkomstland %in% c("1012600", "H007933", "H008519", "H008520", "H008524", "H008531")) %>%
+               # lelijke codes omdat R niet om kan gaan met de ë in Azië; hier staat Nederland, Europa excl. NL, Afrika, Amerika, Azië, Oceanië
+               filter(Herkomstland %in% c("1012600", "H007933", "H008519", "H008520", "H008524", "H008531")) %>% 
                mutate(perc_label = sprintf("%0.1f%%", perc)),
              aes(x=RegioS_label, y=perc, fill=Herkomstland_label)) +
         geom_col(position="dodge") +
@@ -898,7 +919,8 @@ addWorksheet(wb, "Migranten data")
 setColWidths(wb, "Migranten data", cols=1, widths=30)
 
 displaydata = perc.migr %>%
-  select(-c(n, Bevolking_1)) %>%
+  ungroup() %>%
+  select(-c(n, Herkomstland, Bevolking_1)) %>%
   rename(Gemeente=RegioS_label, Regio=Herkomstland_label) %>%
   mutate(perc=perc/100) %>%
   pivot_wider(names_from=Gemeente, values_from=perc)
@@ -948,7 +970,7 @@ ylim.diff = max(ylim)-min(ylim)
 png(graphname("vacc_1"))
 plot(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A028769"], # DKTP
      vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties == "A028769"],
-     type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (2 jr)", xlab="Jaar", ylab="Percentage (%)", ylim=c(min(ylim)-(ylim.diff), min(c(max(ylim)+(ylim.diff), 100)))) 
+     type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (2 jr)", xlab="Verslagjaar", ylab="Percentage (%)", ylim=c(min(ylim)-(ylim.diff), min(c(max(ylim)+(ylim.diff), 100)))) 
 grid(nx=NA, ny=NULL)
 par(new=T)
 lines(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A028769"], # DKTP
@@ -967,7 +989,7 @@ ylim.diff = max(ylim)-min(ylim)
 png(graphname("vacc_2"))
 plot(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A028772"], # MenACWY
      vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties == "A028772"],
-     type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (2 jr)", xlab="Jaar", ylab="Percentage (%)", ylim=c(min(ylim)-(ylim.diff), min(c(max(ylim)+(ylim.diff), 100)))) 
+     type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (2 jr)", xlab="Verslagjaar", ylab="Percentage (%)", ylim=c(min(ylim)-(ylim.diff), min(c(max(ylim)+(ylim.diff), 100)))) 
 grid(nx=NA, ny=NULL)
 par(new=T)
 lines(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A028772"], # MenACWY
@@ -982,13 +1004,13 @@ legend("bottomleft", legend=c("MenACWY", "Pneumokokken", "HepB", "Volledig"), fi
 dev.off()
 insertImage(wb, "Vaccinaties", graphname("vacc_2"), startRow=2, startCol=7, width=5, height=5)
 
-ylim = vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties %in% c("A028778", "A028779", "A028780", "A049175")]
+ylim = vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties %in% c("A028778", "A028779", "A028780", "A049175", "A050956")]
 ylim = ylim[!is.na(ylim)]
 ylim.diff = max(ylim)-min(ylim)
 png(graphname("vacc_3"))
 plot(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A028778"], # DKTP volledig
      vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties == "A028778"],
-     type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (12+ jr)", xlab="Jaar", ylab="Percentage (%)",
+     type="l", col=nog_colors[1], lwd=2, main="Vaccinatiegraad (10+ jr)", xlab="Verslagjaar", ylab="Percentage (%)",
      ylim=c(max(c(min(ylim)-(ylim.diff), 0)), min(c(max(ylim)+(ylim.diff), 100)))) 
 grid(nx=NA, ny=NULL)
 par(new=T)
@@ -998,8 +1020,8 @@ lines(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A028779"], # BMR
       vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties == "A028779"], col=nog_colors[2], lwd=2)
 lines(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A028780"], # HPV
       vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties == "A028780"], col=nog_colors[3], lwd=2)
-lines(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A049175"], # MenACWY
-      vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties == "A049175"], col=nog_colors[4], lwd=2)
+lines(vacc.graad.nog$Jaar[vacc.graad.nog$Vaccinaties == "A050956" | vacc.graad.nog$Vaccinaties == "A049175"], # MenACWY en MenACWY eerdere cohorten
+      vacc.graad.nog$Vaccinatiegraad[vacc.graad.nog$Vaccinaties == "A050956" | vacc.graad.nog$Vaccinaties == "A049175"], col=nog_colors[4], lwd=2)
 legend("bottomleft", legend=c("DKTP", "BMR", "HPV", "MenACWY"), fill=nog_colors[1:4], bty="n")
 dev.off()
 insertImage(wb, "Vaccinaties", graphname("vacc_3"), startRow=2, startCol=13, width=5, height=5)
@@ -1122,10 +1144,14 @@ setColWidths(wb, "Zorgkosten data", cols=1, widths=20)
 
 zorgkosten.nog = zorgkosten %>%
   select(-gemeentenaam, -Gemeentecode) %>%
-  relocate(Gemeente)
+  relocate(Gemeente) %>%
+  group_by(geslacht, leeftijdsklasse) %>%
+  summarize(across(where(is.numeric), ~sum(.x)))
+zorgkosten.nog$totaal = rowSums(zorgkosten.nog[,5:ncol(zorgkosten.nog)])
+zorgkosten.nog$totaal_pj = zorgkosten.nog$totaal / zorgkosten.nog$aantal_verzekerdejaren
 
 writeData(wb, "Zorgkosten data", zorgkosten.nog, startCol=1, startRow=1, headerStyle=headerStyle, borders="surrounding")
-addStyle(wb, "Zorgkosten data", geldStyle, cols=6:ncol(zorgkosten.nog), rows=2:(nrow(zorgkosten.nog)+1), gridExpand=T, stack=T)
+addStyle(wb, "Zorgkosten data", geldStyle, cols=5:ncol(zorgkosten.nog), rows=2:(nrow(zorgkosten.nog)+1), gridExpand=T, stack=T)
 
 # bronvermelding
 addWorksheet(wb, "Bronvermelding")
