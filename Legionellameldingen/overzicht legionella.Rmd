@@ -1,0 +1,72 @@
+---
+title: "Overzicht legionellameldingen"
+author: "Aart Dijkstra"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r echo=F}
+suppressPackageStartupMessages(library(tidyverse))
+library(lubridate)
+library(DBI)
+library(odbc)
+library(glue)
+suppressPackageStartupMessages(library(DT))
+suppressPackageStartupMessages(library(sf))
+library(leaflet)
+library(ggdnog)
+
+conn = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0\\odbnog", Database="HPZone")
+```
+
+```{sql connection=conn, output.var="leg_meldingen"}
+SELECT * FROM leg_meldingen WHERE melddatum >= DATEADD(week, -12, GETDATE())
+```
+
+```{sql connection=conn, output.var="leg_cases"}
+SELECT * FROM vw_cases WHERE groep = 'Legionellose' AND peildatum >= DATEADD(week, -12, GETDATE())
+```
+
+```{r echo=F}
+leg_meldingen = leg_meldingen %>%
+  mutate(melddatum=ymd(melddatum),
+         label=sprintf("%s - %s - %d kve (%s)", handelsnaam, plaats, kve, melddatum),
+         popup=sprintf("%s - %s (%s)<br />%s - %d kve/L<br />Datum: %s (monsterdatum %s)<br />", handelsnaam, plaats, type_instelling, typering, kve, melddatum, monsterdatum))
+date_max = max(leg_meldingen$melddatum, na.rm=T)
+date_min = min(leg_meldingen$melddatum, na.rm=T)
+date_diff = as.numeric(date_max - date_min)
+leg_meldingen$datum_ramp = as.numeric(date_max - leg_meldingen$melddatum) / date_diff
+
+leg_cases = leg_cases %>%
+  mutate(postcode=as.character(postcode),
+         label=sprintf("%s%d - %s %s - %s", geslacht, leeftijd, postcode, gemeentenaam, peildatum),
+         popup=sprintf("%s%d %s - %s<br />%s %s<br />Datum: %s (melddatum %s)<br />Context: %s<br />Melder: %s", geslacht, leeftijd, hpzone_id, diagnosezekerheid, postcode, gemeentenaam, peildatum, melddatum, context, meldorganisatie))
+```
+
+
+```{r include=F}
+kaartdata.pc4 = st_read(paste0(dir_maps(), "pc4_arcgis.shp"))
+kaartdata.pc6 = st_read(paste0(dir_maps(), "PC6.shp")) %>%
+  filter(PC6 %in% leg_meldingen$postcode)
+```
+
+Er zijn totaal `r nrow(leg_cases)` gevallen gemeld in de laatste 12 weken, en `r nrow(leg_meldingen)` meldingen van normoverschrijdingen. In de onderstaande grafiek zijn gevallen aangegeven met markers, en normoverschrijdingen met cirkels; de grootte correspondeert met het aantal KvE, de kleur met de datum (roder = recenter).
+
+```{r echo=F, fig.width=10, fig.height=9}
+color_date = colorNumeric("YlOrRd", leg_meldingen$datum_ramp)
+
+suppressWarnings(leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(radius=~kve/10000,
+                   color=~color_date(datum_ramp),
+                   label=~label,
+                   popup=~popup,
+                   data=kaartdata.pc6 %>% right_join(leg_meldingen, by=c("PC6"="postcode")) %>% st_centroid(),
+                   group="Normoverschrijdingen") %>%
+  addMarkers(label=~label,
+             popup=~popup,
+             data=kaartdata.pc4 %>% right_join(leg_cases, by=c("PC4"="postcode")) %>% st_centroid(),
+             group="Gevallen") %>%
+  addLayersControl(overlayGroups=c("Normoverschrijdingen", "Gevallen")))
+```
+
