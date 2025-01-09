@@ -6,6 +6,10 @@ Een collectie handige scripts voor de dagelijkse vragen binnen IZB.
 ## IZB dashboard
 De databasebestanden en een voorbeeldindeling van de agents/infections/diagnoses in HPZone zijn hier te vinden. Tevens is er een omschrijving van de dataverwerking en een verwerkingsscript toegevoegd. Hiermee is vrij snel een IZB dashboard op te zetten.
 
+## Legionellameldingen
+Meldingen van normoverschrijdingen omtrent legionella komen binnen in de mailbox van team IZB. Deze worden vaak nog handmatig verwerkt en in een sheet gezet o.i.d. Dit script automatiseert het hele proces, van ontvangst, tot opbouw van de dataset, tot weergave in een handige kaart.
+![afbeelding](https://github.com/user-attachments/assets/caf6e0b5-b6af-4148-8de3-75932edc6048)
+
 ## data_nivel.R
 Het Nivel publiceert wekelijks cijfers van de eerstelijns zorgregistraties per GGD in PDF-formaat. Dit script zet deze publicaties om in bruikbare tabellen binnen R. Let op: voor de opslag wordt een interne onderzoeksdatabase gebruikt; de datastructuur is los toegevoegd in data_nivel.sql.
 
