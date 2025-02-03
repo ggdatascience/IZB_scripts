@@ -25,7 +25,7 @@ page = read_html("https://www.nivel.nl/nl/resultaten-van-onderzoek/actuele-cijfe
 # hierin staan steeds twee links: een algemene, en eentje gesplitst per GGD
 h3 = xml_find_all(page, "//div/h3/span[@class='red']")
 h3 = sapply(h3, function (el) {
-  if (str_detect(xml_text(el), "Meest recente"))
+  if (str_detect(xml_text(el), "Meest actuele"))
     return(el)
   return(NA)
 })
