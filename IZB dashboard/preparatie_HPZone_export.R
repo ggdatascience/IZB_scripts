@@ -178,7 +178,7 @@ for (cur_year in years) {
                            TRUE ~ Situation_creation_date),
            artikel26=Artikel_26,
            PC=Postcode,
-           melding=!is.na(Osirisnummer),
+           melding=as.numeric(!is.na(Osirisnummer)),
            risiconiveau=1) %>%
     rename(hpzone_id="Situation_number", invoerdatum="Situation_creation_date",
            status=Status, type=Type, agent="Infectious_agent", scenario=Scenario,
