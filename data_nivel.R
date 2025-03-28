@@ -33,7 +33,7 @@ h3 = h3[!is.na(h3)]
 # nu zoeken we de <a> met GGD in de href
 links = xml_find_all(page, paste0(xml_path(h3[[1]]), "/../../ol/li/a[contains(@href,'GGD')]"))
 datafiles = bind_rows(lapply(links, function (el) {
-  periode = str_match(xml_text(el), "(\\d{4}).*(\\d{1,2})")
+  periode = str_match(xml_text(el), "(\\d{4}).*?(\\d+)")
   return(data.frame(jaar=as.numeric(periode[,2]), week=as.numeric(periode[,3]), link=xml_attr(el, "href")))
 })) %>% arrange(jaar, week)
 
@@ -42,8 +42,13 @@ for (d in 1:nrow(datafiles)) {
   
   data = pdf_text(paste0("https://www.nivel.nl", datafiles$link[d]))
   
+  if (length(data) < 3) {
+    printf("Bestand bestaat niet uit meerdere pagina's; waarschijnlijk verkeerd gepubliceerd. Overslaan...")
+    next
+  }
+  
   # datum rapport ophalen; dit is relevant voor het omschrijven van weeknummers
-  datum = dmy(str_match(data[1], "bijgewerkt op:\\s+(\\d{1,2} \\w+ \\d+)")[,2], locale="nl") # de ODB is ingesteld op Engels; forceren op NL
+  datum = dmy(str_match(data[1], "bijgewerkt op:\\s+(\\d{1,2} \\w+ \\d+)")[,2], locale="nl")
   jaar = year(datum)
   
   # vanaf de derde pagina is het steeds een pagina met cijfers voor de laatste 3 weken, dan een pagina met leeftijdsgroepen (dus 2 per soort aandoening)
@@ -53,7 +58,7 @@ for (d in 1:nrow(datafiles)) {
   for (i in 3:length(data)) {
     # regel 1: aandoening
     # regel 2: skip
-    # regel 3: categorieën of weken
+    # regel 3: categorieÃ«n of weken
     text.header = str_sub(data[i], end=str_locate_all(data[i], "\\n")[[1]][3,1])
     # soms is er per ongeluk een extra pagina; dan overslaan
     if (str_starts(text.header, "Beschrijving populatie")) next
@@ -64,8 +69,8 @@ for (d in 1:nrow(datafiles)) {
       str_replace_all("(\\s*?)100.000(\\s*?)", ";per100k;") %>% # per 100.000 doet rare dingen en is onhandig met variabelenamen
       str_replace_all("[\\s]{2,}", ";") %>%
       str_replace_all("####", "0") %>% # missende waardes worden soms vervangen door ####
-      # sommige witruimtes zijn alsnog maar 1 spatie; alles zonder ( of - er direct na vervangen door ;
-      str_replace_all("(\\d+) (\\d+)", "\\1;\\2") %>%
+    # sommige witruimtes zijn alsnog maar 1 spatie; alles zonder ( of - er direct na vervangen door ;
+    str_replace_all("(\\d+) (\\d+)", "\\1;\\2") %>%
       # regio NOG of VGGM gooit alles door de war, daar komt één cijfer een regel naar voren
       str_replace("\\)((;[0-9,.]+)+)\\sVeiligheids([^;0-9]+)", ")\nVeiligheids\\3;\\1;") %>%
       # soms komt een hele serie verder naar voren
