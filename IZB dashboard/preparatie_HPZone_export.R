@@ -6,25 +6,6 @@
 # - Voer dit bestand uit.                                                      #
 ################################################################################
 
-# configuratiemogelijkheden
-
-# map waar de bestanden geplaatst moeten worden
-# LET OP: slash vs. backslash, gelijk aan opmerking hierboven
-# zet op NA voor uitvoer in datamap
-uitvoermap = "\\\\az-data1.ssc.local\\Apl_data\\DWH_Data\\Import\\NOG_HPZone\\"
-# jaren om op te halen
-# mogelijke waardes: jaartallen of "cur" voor huidig (en voorgaand indien recent na jaarwisseling) jaar
-years = "cur"
-# API details
-# hiervan zijn twee delen nodig:
-# - client secret (herkenbaar aan PROD-API-iets)
-# - client key (herkenbaar aan onleesbaarheid)
-client_id = ""
-client_secret = ""
-
-
-## begin script
-
 # benodigde packages installeren/laden
 pkg_req = c("tidyverse", "this.path", "devtools", "HPZoneAPI")
 
@@ -46,7 +27,24 @@ setwd(dirname(this.path()))
 
 printf = function (...) cat(paste(sprintf(...),"\n"))
 
-HPZone_setup(client_id, client_secret)
+# configuratiemogelijkheden
+
+# map waar de bestanden geplaatst moeten worden
+# LET OP: slash vs. backslash, gelijk aan opmerking hierboven
+# zet op NA voor uitvoer in datamap
+uitvoermap = "\\\\az-data1.ssc.local\\Apl_data\\DWH_Data\\Import\\NOG_HPZone\\"
+# jaren om op te halen
+# mogelijke waardes: jaartallen of "cur" voor huidig (en voorgaand indien recent na jaarwisseling) jaar
+years = "cur"
+# API details
+# hiervan zijn twee delen nodig:
+# - client secret (herkenbaar aan PROD-API-iets)
+# - client key (herkenbaar aan onleesbaarheid)
+# voer deze voor de eerste keer uitvoeren in met HPZone_store_credentials()
+
+
+## begin script
+HPZone_setup()
 
 if (!is.na(uitvoermap) && !str_ends(uitvoermap, "\\\\") && !str_ends(uitvoermap, "/")) {
   uitvoermap = paste0(uitvoermap, "/")
