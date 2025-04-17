@@ -356,7 +356,7 @@ CREATE VIEW [dbo].[vw_cases]
 AS
 SELECT        dbo.cases.Case_number AS hpzone_id, COALESCE (dbo.cases.Date_of_onset, dbo.cases.Datum_melding_aan_de_ggd, dbo.cases.Case_creation_date) AS peildatum, 
                          COALESCE (dbo.cases.Datum_melding_aan_de_ggd, dbo.cases.Case_creation_date) AS melddatum, dbo.cases.Date_closed AS sluitdatum, dbo.cases.Gender AS geslacht, 
-                         dbo.cases.Oorspronkelijke_bron_van_de_melding AS meldorganisatie, dbo.cases.Age_in_years AS leeftijd, dbo.cases.Postcode, gem.gemeentecode, gem.gemeentenaam, 
+                         dbo.cases.Oorspronkelijke_bron_van_de_melding AS meldorganisatie, dbo.cases.Age_in_years AS leeftijd, dbo.cases.Postcode AS postcode, gem.gemeentecode, gem.gemeentenaam, 
                          COALESCE ((CASE WHEN dbo.cases.ABR = 'CPE' THEN dbo.cases.ABR ELSE NULL END), zgdx.groep_naam, zginf.groep_naam, zgag.groep_naam, dbo.cases.ABR) AS groep, 
                          (CASE WHEN dbo.cases.ABR = 'CPE' THEN 1 WHEN zgdx.groep_id IS NOT NULL THEN zgdx.groep_meldingsplichtig WHEN zginf.groep_id IS NOT NULL 
                          THEN zginf.groep_meldingsplichtig WHEN zgag.groep_id IS NOT NULL THEN zgag.groep_meldingsplichtig WHEN dbo.cases.ABR IS NOT NULL THEN 1 ELSE 0 END) AS meldingsplichtig, 
@@ -385,7 +385,7 @@ GO
 CREATE VIEW [dbo].[vw_enquiries]
 AS
 SELECT        dbo.enquiries.Enquiry_number AS hpzone_id, dbo.enquiries.Received_on AS startdatum, dbo.enquiries.Date_closed AS einddatum, mdw_o.mdw_naam AS ontvanger, mdw_b.mdw_naam AS medewerker, 
-                         dbo.enquiries.Status, dbo.enquiries.Caller_postcode4 AS postcode, 'U' AS geslacht, dbo.enquiries.Type_of_caller AS typebeller, dbo.enquiries.Broad_topic AS categorie, 
+                         dbo.enquiries.Status AS status, dbo.enquiries.Caller_postcode4 AS postcode, 'U' AS geslacht, dbo.enquiries.Type_of_caller AS typebeller, dbo.enquiries.Broad_topic AS categorie, 
                          dbo.hpz_onderwerp.ond_naam AS onderwerp, dbo.infectieziekte.groep_naam AS onderwerp_groep, dbo.infectieziekte.groep_meldingsplichtig AS onderwerp_meldingsplichtig, 
                          dbo.enquiries.Additional_topic AS onderwerpopen, dbo.enquiries.created, dbo.enquiries.updated
 FROM            dbo.enquiries LEFT OUTER JOIN
@@ -400,9 +400,9 @@ GO
 CREATE VIEW [dbo].[vw_situations]
 AS
 SELECT        dbo.situations.Situation_number AS hpzone_id, COALESCE (dbo.situations.Start_date, dbo.situations.Situation_creation_date) AS datum, dbo.situations.Situation_creation_date AS invoerdatum, 
-                         dbo.situations.Closed_date AS sluitdatum, dbo.situations.Status, dbo.situations.Type, dbo.hpz_agent.ag_naam AS agent, zgag.groep_naam AS agent_groep, 
+                         dbo.situations.Closed_date AS sluitdatum, dbo.situations.Status AS status, dbo.situations.Type AS type, dbo.hpz_agent.ag_naam AS agent, zgag.groep_naam AS agent_groep, 
                          zgag.groep_meldingsplichtig AS agent_meldingsplichtig, dbo.hpz_scenario.sc_naam AS scenario, dbo.hpz_scenario.sc_groep AS scenario_groep, dbo.situations.Confidence AS zekerheid, 
-                         dbo.situations.Artikel_26 AS artikel26, dbo.hpz_context.ctx_naam AS context, dbo.situations.Postcode, gem.gemeentecode, gem.gemeentenaam, (CASE WHEN Osirisnummer IS NOT NULL THEN 1 ELSE 0 END) 
+                         dbo.situations.Artikel_26 AS artikel26, dbo.hpz_context.ctx_naam AS context, dbo.situations.Postcode AS postcode, gem.gemeentecode, gem.gemeentenaam, (CASE WHEN Osirisnummer IS NOT NULL THEN 1 ELSE 0 END) 
                          AS melding, mdw_a.mdw_naam AS medewerker, mdw_b.mdw_naam AS casemanager, dbo.situations.Number_potentially_at_risk AS aantal_risico, 
                          dbo.situations.Number_of_symptomatic_cases AS aantal_symptomatisch, dbo.situations.Number_of_fatalities AS aantal_overleden, dbo.situations.Number_hospitalised AS aantal_ziekenhuis, 1 AS risiconiveau, 
                          dbo.situations.created, dbo.situations.updated

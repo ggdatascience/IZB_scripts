@@ -11,9 +11,9 @@ GO
 CREATE VIEW [dbo].[vw_situations]
 AS
 SELECT        dbo.situations.Situation_number AS hpzone_id, COALESCE (dbo.situations.Start_date, dbo.situations.Situation_creation_date) AS datum, dbo.situations.Situation_creation_date AS invoerdatum, 
-                         dbo.situations.Closed_date AS sluitdatum, dbo.situations.Status, dbo.situations.Type, dbo.hpz_agent.ag_naam AS agent, zgag.groep_naam AS agent_groep, 
+                         dbo.situations.Closed_date AS sluitdatum, dbo.situations.Status AS status, dbo.situations.Type AS type, dbo.hpz_agent.ag_naam AS agent, zgag.groep_naam AS agent_groep, 
                          zgag.groep_meldingsplichtig AS agent_meldingsplichtig, dbo.hpz_scenario.sc_naam AS scenario, dbo.hpz_scenario.sc_groep AS scenario_groep, dbo.situations.Confidence AS zekerheid, 
-                         dbo.situations.Artikel_26 AS artikel26, dbo.hpz_context.ctx_naam AS context, dbo.situations.Postcode, gem.gemeentecode, gem.gemeentenaam, (CASE WHEN Osirisnummer IS NOT NULL THEN 1 ELSE 0 END) 
+                         dbo.situations.Artikel_26 AS artikel26, dbo.hpz_context.ctx_naam AS context, dbo.situations.Postcode AS postcode, gem.gemeentecode, gem.gemeentenaam, (CASE WHEN Osirisnummer IS NOT NULL THEN 1 ELSE 0 END) 
                          AS melding, mdw_a.mdw_naam AS medewerker, mdw_b.mdw_naam AS casemanager, dbo.situations.Number_potentially_at_risk AS aantal_risico, 
                          dbo.situations.Number_of_symptomatic_cases AS aantal_symptomatisch, dbo.situations.Number_of_fatalities AS aantal_overleden, dbo.situations.Number_hospitalised AS aantal_ziekenhuis, 1 AS risiconiveau, 
                          dbo.situations.created, dbo.situations.updated

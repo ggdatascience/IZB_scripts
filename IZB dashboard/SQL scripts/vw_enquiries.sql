@@ -1,4 +1,4 @@
-USE [HPZone_new]
+USE [HPZone]
 GO
 
 /****** Object:  View [dbo].[vw_enquiries]    Script Date: 3/28/2025 7:20:33 PM ******/
@@ -11,7 +11,7 @@ GO
 CREATE VIEW [dbo].[vw_enquiries]
 AS
 SELECT        dbo.enquiries.Enquiry_number AS hpzone_id, dbo.enquiries.Received_on AS startdatum, dbo.enquiries.Date_closed AS einddatum, mdw_o.mdw_naam AS ontvanger, mdw_b.mdw_naam AS medewerker, 
-                         dbo.enquiries.Status, dbo.enquiries.Caller_postcode4 AS postcode, 'U' AS geslacht, dbo.enquiries.Type_of_caller AS typebeller, dbo.enquiries.Broad_topic AS categorie, 
+                         dbo.enquiries.Status AS status, dbo.enquiries.Caller_postcode4 AS postcode, 'U' AS geslacht, dbo.enquiries.Type_of_caller AS typebeller, dbo.enquiries.Broad_topic AS categorie, 
                          dbo.hpz_onderwerp.ond_naam AS onderwerp, dbo.infectieziekte.groep_naam AS onderwerp_groep, dbo.infectieziekte.groep_meldingsplichtig AS onderwerp_meldingsplichtig, 
                          dbo.enquiries.Additional_topic AS onderwerpopen, dbo.enquiries.created, dbo.enquiries.updated
 FROM            dbo.enquiries LEFT OUTER JOIN

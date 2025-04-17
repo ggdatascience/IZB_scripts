@@ -1,4 +1,4 @@
-USE [HPZone_new]
+USE [HPZone]
 GO
 
 /****** Object:  View [dbo].[vw_cases]    Script Date: 3/28/2025 7:20:24 PM ******/
@@ -12,7 +12,7 @@ CREATE VIEW [dbo].[vw_cases]
 AS
 SELECT        dbo.cases.Case_number AS hpzone_id, COALESCE (dbo.cases.Date_of_onset, dbo.cases.Datum_melding_aan_de_ggd, dbo.cases.Case_creation_date) AS peildatum, 
                          COALESCE (dbo.cases.Datum_melding_aan_de_ggd, dbo.cases.Case_creation_date) AS melddatum, dbo.cases.Date_closed AS sluitdatum, dbo.cases.Gender AS geslacht, 
-                         dbo.cases.Oorspronkelijke_bron_van_de_melding AS meldorganisatie, dbo.cases.Age_in_years AS leeftijd, dbo.cases.Postcode, gem.gemeentecode, gem.gemeentenaam, 
+                         dbo.cases.Oorspronkelijke_bron_van_de_melding AS meldorganisatie, dbo.cases.Age_in_years AS leeftijd, dbo.cases.Postcode AS postcode, gem.gemeentecode, gem.gemeentenaam, 
                          COALESCE ((CASE WHEN dbo.cases.ABR = 'CPE' THEN dbo.cases.ABR ELSE NULL END), zgdx.groep_naam, zginf.groep_naam, zgag.groep_naam, dbo.cases.ABR) AS groep, 
                          (CASE WHEN dbo.cases.ABR = 'CPE' THEN 1 WHEN zgdx.groep_id IS NOT NULL THEN zgdx.groep_meldingsplichtig WHEN zginf.groep_id IS NOT NULL 
                          THEN zginf.groep_meldingsplichtig WHEN zgag.groep_id IS NOT NULL THEN zgag.groep_meldingsplichtig WHEN dbo.cases.ABR IS NOT NULL THEN 1 ELSE 0 END) AS meldingsplichtig, 
