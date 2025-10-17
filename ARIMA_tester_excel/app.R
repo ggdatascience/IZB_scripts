@@ -118,7 +118,7 @@ server <- function(input, output) {
   data = reactive({
     data = read_excel(input$databestand)
     data = data %>%
-      mutate(peildatum=coalesce(`Date of Onset`, `Datum melding aan de GGD`, `Time entered`),
+      mutate(peildatum=coalesce(`Date of Onset`, `Time entered`),
              m = month(peildatum), y = year(peildatum)) %>%
       arrange(peildatum) %>%
       group_by(y, m) %>%
