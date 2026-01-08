@@ -24,14 +24,16 @@ page = read_html("https://www.nivel.nl/nl/resultaten-van-onderzoek/actuele-cijfe
 # de pagina bestaat uit een hele lijst elementen, we zoeken specifiek een <h3> met daarin een <span class="red">, gevolgd door een <ol>
 # hierin staan steeds twee links: een algemene, en eentje gesplitst per GGD
 h3 = xml_find_all(page, "//div/h3/span[@class='red']")
-h3 = sapply(h3, function (el) {
-  if (str_detect(xml_text(el), "Meest actuele"))
-    return(el)
-  return(NA)
-})
+if (length(h3) > 1) {
+  h3 = sapply(h3, function (el) {
+    if (str_detect(xml_text(el), "Meest actuele"))
+      return(el)
+    return(NA)
+  })
+}
 h3 = h3[!is.na(h3)]
 # nu zoeken we de <a> met GGD in de href
-links = xml_find_all(page, paste0(xml_path(h3[[1]]), "/../../ol/li/a[contains(@href,'GGD')]"))
+links = xml_find_all(page, paste0(xml_path(h3[[1]]), "/../../ul/li/a[contains(@href,'GGD')]"))
 datafiles = bind_rows(lapply(links, function (el) {
   periode = str_match(xml_text(el), "(\\d{4}).*?(\\d+)")
   return(data.frame(jaar=as.numeric(periode[,2]), week=as.numeric(periode[,3]), link=xml_attr(el, "href")))
