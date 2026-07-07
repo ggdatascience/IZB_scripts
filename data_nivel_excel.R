@@ -12,8 +12,10 @@ setwd(dirname(this.path()))
 
 printf = function (...) cat(paste(sprintf(...),"\n"))
 
-NullOrQuotes = function (val) {
+NullOrQuotes = function (val, fmt=NA) {
+  fmt = rep(coalesce(fmt, "%s"), length(val))
   return(case_when(is.na(val) | is.null(val) ~ "NULL",
+                   is.numeric(val) & !is.na(fmt) ~ sprintf(fmt, val),
                    is.numeric(val) ~ as.character(val),
                    is.character(val) ~ as.character(dbQuoteString(conn, as.character(val))),
                    TRUE ~ paste0("'", str_replace_all(val, fixed("'"), "''"), "'")))
@@ -158,31 +160,34 @@ for (d in 1:nrow(datafiles)) {
       # week bestaat al, updaten
       update = sprintf("UPDATE nivel_zorgregistraties
              SET aantal=%s, per100k=%s, updated=GETDATE()
-             WHERE aandoening='%s' AND ggd_regio=%d AND jaar=%d AND week=%d", NullOrQuotes(data_week$aantal), NullOrQuotes(data_week$per100k_totaal),
+             WHERE aandoening='%s' AND ggd_regio=%d AND jaar=%d AND week=%d", NullOrQuotes(data_week$aantal), NullOrQuotes(data_week$per100k_totaal, "%.2f"),
                        data_week$aandoening, data_week$ggd_id, data_week$jaar, data_week$week)
       
       dbExecute(conn, paste0("BEGIN TRANSACTION;
-    ", str_c(update, collapse=";\n"), "
-             COMMIT TRANSACTION;"))
+      ", str_c(update, collapse=";\n"), ";
+               COMMIT TRANSACTION;"))
+      printf("Week %d-%d: %d rijen aangepast.", first(data_week$jaar), first(data_week$week), length(update))
       
       # per leeftijdsgroep
       update = sprintf("UPDATE nivel_zorgregistraties_leeftijd
              SET per100k=%s, updated=GETDATE()
-             WHERE aandoening='%s' AND ggd_regio=%d AND jaar=%d AND week=%d AND leeftijd='%s'", NullOrQuotes(data_leeftijd$per100k), data_leeftijd$aandoening,
+             WHERE aandoening='%s' AND ggd_regio=%d AND jaar=%d AND week=%d AND leeftijd='%s'", NullOrQuotes(data_leeftijd$per100k, "%.2f"), data_leeftijd$aandoening,
                        data_leeftijd$ggd_id, data_leeftijd$jaar, data_leeftijd$week, data_leeftijd$leeftijdsgroep)
       
       for (u in seq(1, length(update), 500)) {
         end = min(u + 499, length(update))
         dbExecute(conn, paste0("BEGIN TRANSACTION;
-      ", str_c(update, collapse=";\n"), "
+      ", str_c(update[u:end], collapse=";\n"), ";
                COMMIT TRANSACTION;"))
       }
+      printf("Week %d-%d: %d rijen aangepast voor de leeftijdstabel.", first(data_week$jaar), first(data_week$week), length(update))
     } else {
       # totaal
       values = sprintf("('%s', %d, %d, %d, %s, %s, GETDATE())", data_week$aandoening, data_week$ggd_id, data_week$jaar, data_week$week,
                        NullOrQuotes(data_week$aantal), NullOrQuotes(data_week$per100k_totaal))
       dbExecute(conn, paste0("INSERT INTO nivel_zorgregistraties(aandoening, ggd_regio, jaar, week, aantal, per100k, created)
              VALUES", str_c(values, collapse=", ")))
+      printf("Week %d-%d: %d rijen ingevoegd.", first(data_week$jaar), first(data_week$week), length(values))
       
       # per leeftijdsgroep
       values = sprintf("('%s', '%s', %d, %d, %d, %s, GETDATE())",
@@ -194,6 +199,7 @@ for (d in 1:nrow(datafiles)) {
         dbExecute(conn, paste0("INSERT INTO nivel_zorgregistraties_leeftijd(aandoening, leeftijd, ggd_regio, jaar, week, per100k, created)
              VALUES", str_c(values[u:end], collapse=", ")))
       }
+      printf("Week %d-%d: %d rijen ingevoegd voor de leeftijdstabel.", first(data_week$jaar), first(data_week$week), length(values))
     }
   }
   
