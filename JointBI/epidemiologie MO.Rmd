@@ -306,6 +306,22 @@ for (inf in infecties) {
     scale_x_date(limits=c(startdatum, Sys.Date())) +
     scale_fill_manual(values=ggd_colors))
   cat("\n\nLaatste melding: ", strftime(max(cases$peildatum[cases$groep == inf], na.rm=T), "%Y-%m-%d"), "\n\n")
+  cat("#### Diagnoses en reisgeschiedenis")
+  cat("\n\nDiagnoses:\n")
+  print(ggplot(cases %>% filter(groep == inf), aes(x=peildatum, fill=diagnose)) +
+    geom_bar() +
+    labs(x="Datum", y="Aantal", fill="Diagnose", title="Aantal meldingen in de laatste 6 weken", subtitle=inf) +
+    scale_x_date(limits=c(startdatum, Sys.Date())))
+  cat("\n")
+  print(xtable(cases[which(cases$groep == inf),] %>% group_by(diagnose) %>% summarize(n=n()) %>% mutate(perc=n/sum(n)*100)))
+  cat("<details><summary>Splitsing per GGD</summary>")
+  print(xtable(describe(cases$leeftijd[which(cases$groep == inf)], cases$GGDAfk[which(cases$groep == inf)])))
+  cat("</details>\n")
+  cat("\nReisgeschiedenis:\n")
+  print(xtable(freq.table(cases$buitenland[which(cases$groep == inf)])))
+  cat("<details><summary>Splitsing per GGD</summary>")
+  print(xtable(freq.table(cases$GGDAfk[which(cases$groep == inf)], cases$buitenland[which(cases$groep == inf)])))
+  cat("</details>\n")
   cat("#### Verloop door de jaren\n")
   print(ggplot(cases.historisch %>% filter(groep == inf) %>% group_by(jaar, maand) %>% summarize(n=sum(n)), aes(x=maand, y=n)) +
     geom_col(aes(fill=factor(jaar)), position="dodge") +
