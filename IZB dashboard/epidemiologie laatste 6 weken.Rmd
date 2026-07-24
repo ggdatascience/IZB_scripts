@@ -40,11 +40,13 @@ suppressPackageStartupMessages(library(sf))
 library(leaflet)
 library(htmltools)
 library(xtable)
+library(forecast)
 library(ggdnog)
 
 options(xtable.comment = FALSE,
         xtable.type="html",
-        xtable.html.table.attributes="border=0")
+        xtable.html.table.attributes="border=0",
+        dplyr.summarise.inform=F)
 
 #printf = function (...) cat(paste(sprintf(...),"\n"))
 
@@ -52,10 +54,11 @@ options(xtable.comment = FALSE,
 #nog_colors = c("#1D1756", "#D1005D", "#2F6594", "#D3DFF1", "#FFBDDB")
 #nog_palette = c("#FAE6EF","#F6CCDF","#ED99BE","#E3669E","#D1005D")
 
-kaartdata = st_read(paste0(dir_maps(), "pc4_arcgis.shp"))
+kaartdata = st_read(dir_maps("pc4_arcgis.shp"))
 
-conn = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0\\odbnog", Database="HPZone")
+conn = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0.ssc.local\\odbnog", Database="HPZone")
 ```
+
 
 ```{r}
 startdatum = floor_date(Sys.Date() - dweeks(6), unit="week")
@@ -81,9 +84,94 @@ ORDER BY jaar, week ASC
 ```
 
 ```{r}
-vir_weekstaat = vir_weekstaat %>% mutate(label=sprintf("%d-%d", jaar, week))
+vir_weekstaat = vir_weekstaat %>% mutate(label=sprintf("%d-%02d", jaar, week))
 ```
 
+```{sql connection=conn, output.var="vir_weekstaat_historisch"}
+SELECT virus, groep, jaar, week, SUM(n) AS n
+FROM vw_vir_weekstaat
+GROUP BY virus, groep, jaar, week
+```
+
+
+# Legionellameldingen in de laatste 6 weken
+```{sql connection=conn, output.var="leg_meldingen"}
+SELECT * FROM leg_meldingen WHERE melddatum >= ?startdatum
+```
+
+```{r include=F}
+leg_meldingen$melddatum = ymd(leg_meldingen$melddatum)
+leg_meldingen$monsterdatum = ymd(leg_meldingen$monsterdatum)
+kaartdata.pc6 = st_read(paste0(dir_maps(), "PC6.shp")) %>%
+  filter(PC6 %in% leg_meldingen$postcode)
+```
+
+```{r}
+ggplot(leg_meldingen, aes(x=melddatum, fill=type_instelling)) +
+  geom_bar() +
+  labs(title="Meldingen legionella normoverschrijding", x="Datum", y="Aantal", fill="Type instelling")
+```
+
+```{r}
+datatable(leg_meldingen %>% select(melddatum, monsterdatum, handelsnaam, plaats, kve, typering))
+```
+
+```{sql connection=conn, output.var="leg_cases"}
+SELECT * FROM vw_cases WHERE groep = 'Legionellose' AND peildatum >= ?startdatum
+```
+
+```{r echo=F}
+leg_meldingen = leg_meldingen %>%
+  mutate(melddatum=ymd(melddatum),
+         label=sprintf("%s - %s - %d kve (%s)", handelsnaam, plaats, kve, melddatum),
+         popup=sprintf("%s - %s (%s)<br />%s - %d kve/L<br />Datum: %s (monsterdatum %s)<br />", handelsnaam, plaats, type_instelling, typering, kve, melddatum, monsterdatum))
+date_max = max(leg_meldingen$melddatum, na.rm=T)
+date_min = min(leg_meldingen$melddatum, na.rm=T)
+date_diff = as.numeric(date_max - date_min)
+leg_meldingen$datum_ramp = as.numeric(date_max - leg_meldingen$melddatum) / date_diff
+
+leg_cases = leg_cases %>%
+  mutate(postcode=as.character(postcode),
+         label=sprintf("%s%d - %s %s - %s", geslacht, leeftijd, postcode, gemeentenaam, peildatum),
+         popup=sprintf("%s%d %s - %s<br />%s %s<br />Datum: %s (melddatum %s)<br />Context: %s<br />Melder: %s", geslacht, leeftijd, hpzone_id, diagnosezekerheid, postcode, gemeentenaam, peildatum, melddatum, context, meldorganisatie))
+```
+
+```{r echo=F, fig.width=10, fig.height=9}
+color_date = colorNumeric("YlOrRd", leg_meldingen$datum_ramp)
+
+leg_kaart = leaflet() %>%
+  addTiles()
+
+if (nrow(leg_meldingen) > 1) {
+  leg_kaart = leg_kaart %>%
+    # 10 km cirkel
+  addPolygons(data=kaartdata.pc6 %>% right_join(leg_meldingen, by=c("PC6"="postcode")) %>% st_centroid() %>% st_buffer(dist=10000),
+              color=~color_date(datum_ramp),
+              group="10 km cirkel") %>%
+  # 5 km cirkel
+  addPolygons(data=kaartdata.pc6 %>% right_join(leg_meldingen, by=c("PC6"="postcode")) %>% st_centroid() %>% st_buffer(dist=5000),
+              color=~color_date(datum_ramp),
+              group="5 km cirkel") %>%
+  addCircleMarkers(radius=~kve/5000,
+                   color=~color_date(datum_ramp),
+                   label=~label,
+                   popup=~popup,
+                   data=kaartdata.pc6 %>% right_join(leg_meldingen, by=c("PC6"="postcode")) %>% st_centroid(),
+                   group="Normoverschrijdingen")
+}
+
+if (nrow(leg_cases) > 0) {
+  leg_kaart = leg_kaart %>%
+    addMarkers(label=~label,
+             popup=~popup,
+             data=kaartdata %>% right_join(leg_cases, by=c("PC4"="postcode")) %>% st_centroid(),
+             group="Gevallen")
+}
+suppressWarnings(leg_kaart %>%
+  addLayersControl(overlayGroups=c("Normoverschrijdingen", "5 km cirkel", "10 km cirkel", "Gevallen"),
+                   options=layersControlOptions())) %>%
+  hideGroup("5 km cirkel") %>% hideGroup("10 km cirkel")
+```
 
 # Overzicht casuïstiek in de laatste 6 weken
 ```{sql connection=conn, output.var="cases"}
@@ -99,6 +187,12 @@ cases$melddatum = as.Date(cases$melddatum)
 
 ```{r}
 ggplotly(ggplot(cases, aes(y=groep, fill=diagnosezekerheid)) +
+  geom_bar() +
+  labs(x="Aantal", y="Groep", title="Aantal gemelde gevallen", fill="Zekerheid"))
+```
+
+```{r}
+ggplotly(ggplot(cases, aes(y=infectie, fill=diagnosezekerheid)) +
   geom_bar() +
   labs(x="Aantal", y="Infectie", title="Aantal gemelde gevallen", fill="Zekerheid"))
 ```
@@ -116,6 +210,10 @@ infecties_sql = glue_sql("{infecties*}", .con=conn)
 beginjaar = year(startdatum) - 5
 ```
 
+```{sql connection=conn, output.var="groepen"}
+SELECT * FROM infectieziekte WHERE groep_naam IN (?infecties_sql)
+```
+
 ```{sql connection=conn, output.var="cases.historisch"}
 SELECT YEAR(peildatum) as jaar, MONTH(peildatum) AS maand, groep, COUNT(hpzone_id) AS n FROM vw_cases
 WHERE groep IN (?infecties_sql) AND YEAR(peildatum) >= ?beginjaar AND diagnosezekerheid != 'Discarded'
@@ -124,6 +222,70 @@ GROUP BY YEAR(peildatum), MONTH(peildatum), groep
 
 ```{r results="asis"}
 for (inf in infecties) {
+  graph_data = data.frame()
+  groep_index = which(groepen$groep_naam == inf)
+  if (all(!is.na(groepen[groep_index, c("arima_p", "arima_d", "arima_q")]))) {
+    # ARIMA toevoegen
+    arima_data = cases.historisch %>%
+      filter(groep == inf) %>%
+      complete(jaar, maand) %>%
+      filter(!(jaar >= year(Sys.Date()) & maand >= month(Sys.Date()))) %>%
+      mutate(n=ifelse(is.na(n), 0, n),
+             diff=c(NA, diff(n)),
+             datum=ymd(paste0(jaar, "-", maand, "-1")))
+    
+    arima_data_training = arima_data[1:round(nrow(arima_data)*0.8),]
+    
+    if (all(!is.na(groepen[groep_index, c("season_p", "season_d", "season_q")]))) {
+      model = Arima(arima_data$n, order=c(groepen$arima_p[groep_index], groepen$arima_d[groep_index], groepen$arima_q[groep_index]),
+                    seasonal=list(order=c(groepen$season_p[groep_index], groepen$season_d[groep_index], groepen$season_q[groep_index]), period=12),
+                    method="ML")
+      model_training = Arima(arima_data_training$n, order=c(groepen$arima_p[groep_index], groepen$arima_d[groep_index], groepen$arima_q[groep_index]),
+                    seasonal=list(order=c(groepen$season_p[groep_index], groepen$season_d[groep_index], groepen$season_q[groep_index]), period=12),
+                    method="ML")
+    } else {
+      model = Arima(arima_data$n, order=c(groepen$arima_p[groep_index], groepen$arima_d[groep_index], groepen$arima_q[groep_index]), method="ML")
+      model_training = Arima(arima_data_training$n, order=c(groepen$arima_p[groep_index], groepen$arima_d[groep_index], groepen$arima_q[groep_index]), method="ML")
+    }
+    
+    model.nn = nnetar(arima_data$n, xreg=arima_data$maand)
+    model.nn.training = nnetar(arima_data_training$n, xreg=arima_data_training$maand)
+    
+    pred_months = (0:11) + month(Sys.Date())
+    pred_months[pred_months > 12] = pred_months[pred_months > 12] - 12
+    pred_months_training = last(arima_data_training$maand) + (1:12)
+    pred_months_training[pred_months_training > 12] = pred_months_training[pred_months_training > 12] - 12
+    pred = forecast(model, h=12)
+    pred.training = forecast(model_training, h=12)
+    pred.nn = forecast(model.nn, xreg=pred_months_training, h=12)
+    pred.nn.training = forecast(model.nn.training, xreg=pred_months_training, h=12)
+    graph_data = arima_data %>%
+      select(jaar, maand, n, datum) %>%
+      mutate(pred=F) %>%
+      bind_rows(data.frame(jaar=NA, maand=NA, n=pred$mean,
+                           datum=max(arima_data$datum)+months(1:length(pred$mean)), pred=T,
+                           upper_ci=pred$upper[,1], lower_ci=pred$lower[,1],
+                           nn=pred.nn$mean) %>% #[,1] = 80% CI, [,2] = 95% CI
+                  mutate(jaar=year(datum), maand=month(datum)))
+    
+    graph_data_training = arima_data %>%
+      select(jaar, maand, n, datum) %>%
+      full_join(data.frame(jaar=NA, maand=NA, narima=pred.training$mean,
+                           datum=max(arima_data_training$datum)+months(1:length(pred.training$mean)),
+                           upper_ci=pred.training$upper[,1], lower_ci=pred.training$lower[,1],
+                           nn=pred.nn.training$mean) %>% #[,1] = 80% CI, [,2] = 95% CI
+                  mutate(jaar=year(datum), maand=month(datum)) %>%
+                  select(-datum),
+                by=c("jaar", "maand")) %>%
+      mutate(pred=!is.na(narima))
+  }
+  
+  meerj_gem = cases.historisch %>%
+    filter(groep == inf, jaar < startjaar1) %>%
+    complete(jaar, maand, fill=list(n=0)) %>%
+    group_by(maand) %>%
+    summarize(se=sd(n, na.rm=T)/sqrt(n()), n=mean(n, na.rm=T), ci_low=n-1.96*se, ci_high=n+1.96*se)
+  
   cat("### ", inf, "\n")
   cat("#### Verloop meldingen afgelopen tijd\n")
   print(ggplot(cases %>% filter(groep == inf), aes(x=peildatum, fill=diagnosezekerheid)) +
@@ -131,10 +293,21 @@ for (inf in infecties) {
     labs(x="Datum", y="Aantal", fill="Zekerheid", title="Aantal meldingen in de laatste 6 weken", subtitle=inf) +
     scale_x_date(limits=c(startdatum, Sys.Date())))
   cat("\n\nLaatste melding: ", strftime(max(cases$peildatum[cases$groep == inf], na.rm=T), "%Y-%m-%d"), "\n\n")
+  cat("#### Diagnoses en reisgeschiedenis")
+  cat("\n\nDiagnoses:\n")
+  print(ggplot(cases %>% filter(groep == inf), aes(x=peildatum, fill=diagnose)) +
+    geom_bar() +
+    labs(x="Datum", y="Aantal", fill="Diagnose", title="Aantal meldingen in de laatste 6 weken", subtitle=inf) +
+    scale_x_date(limits=c(startdatum, Sys.Date())))
+  cat("\n")
+  print(xtable(cases[which(cases$groep == inf),] %>% group_by(diagnose) %>% summarize(n=n()) %>% mutate(perc=n/sum(n)*100)))
+  cat("\nReisgeschiedenis:\n")
+  print(xtable(freq.table(cases$buitenland[which(cases$groep == inf)])))
   cat("#### Verloop door de jaren\n")
   print(ggplot(cases.historisch %>% filter(groep == inf), aes(x=maand, y=n)) +
-    geom_smooth() +
     geom_col(aes(fill=factor(jaar)), position="dodge") +
+    geom_ribbon(aes(ymin=ci_low, ymax=ci_high), alpha=0.3, data=meerj_gem) +
+    geom_line(data=meerj_gem, linewidth=1, color="blue") +
     labs(title="Verloop meldingen over tijd", subtitle=inf, x="Maand", y="Aantal", fill="Jaar") +
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13)))
   cat("\n")
@@ -143,7 +316,56 @@ for (inf in infecties) {
     labs(title="Verloop meldingen over tijd", subtitle=inf, x="Datum", y="Aantal"))
   cat("\n")
   print(xtable(cases.historisch %>% filter(groep == inf) %>% group_by(jaar) %>% summarize(n=sum(n))))
+  print(xtable(cases.historisch %>%
+                 filter(groep == inf) %>%
+                 group_by(jaar, maand) %>%
+                 summarize(n=sum(n)) %>%
+                 pivot_wider(names_from="jaar", values_from="n") %>%
+                 arrange(maand)))
   cat("\n")
+  if (nrow(graph_data) > 0) {
+    arima_tekst = paste0("(", str_c(c(groepen$arima_p[groep_index], groepen$arima_d[groep_index], groepen$arima_q[groep_index]), collapse=", "), ") (", str_c(c(groepen$season_p[groep_index], groepen$season_d[groep_index], groepen$season_q[groep_index]), collapse=", "), ") ", model.nn$method, "; AICc: ", round(model$aicc, digits=2))
+    
+    cat("#### Verloop door de jaren met voorspelling\n")
+    cat("ARIMA", arima_tekst, "\n")
+    print(xtable(accuracy(model)))
+    cat("NNet ", model.nn$method, "\n")
+    print(xtable(accuracy(model.nn)))
+    cat("\n")
+    cat("##### Trainingsmodel\n")
+    print(ggplot(graph_data_training, aes(x=datum)) +
+      geom_ribbon(aes(ymin=lower_ci, ymax=upper_ci), fill=nog_colors[10]) +
+      geom_line(aes(y=narima, linetype="dashed")) +
+      geom_line(aes(y=nn, linetype="dotted"), color=nog_colors[2]) +
+      geom_point(aes(y=n)) +
+      scale_linetype_discrete(labels=c('dashed'="Voorspelling", 'dotted'="Voorspelling NNet")) +
+      labs(title=paste(inf, arima_tekst), subtitle="Trainingsmodel met 80% data", x="Datum", y="Aantal (n)", linetype="Serie"))
+    cat("\n\n")
+    cat("##### Productiemodel\n")
+    cat("\n")
+    print(ggplot(graph_data %>% filter(pred == F, n > 0), aes(x=maand, y=n)) +
+      geom_ribbon(aes(ymin=lower_ci, ymax=upper_ci), fill=nog_colors[10], data=graph_data %>% filter(pred == T)) +
+      geom_line(aes(linetype="dashed"), data=graph_data %>% filter(pred == T)) + geom_point(data=graph_data %>% filter(pred == T)) +
+      geom_line(aes(y=nn, linetype="dotted"), color=nog_colors[2], data=graph_data %>% filter(pred == T)) +
+      geom_col(aes(fill=factor(jaar)), position="dodge") +
+      geom_ribbon(aes(ymin=ci_low, ymax=ci_high), alpha=0.3, data=meerj_gem) +
+      geom_line(aes(linetype="5-jaarsgemiddelde"), data=meerj_gem, linewidth=1, color="blue") +
+      labs(title="Verloop meldingen over tijd incl. voorspelling", subtitle=paste(inf, arima_tekst), x="Maand", y="Aantal", fill="Jaar", linetype="Berekening") +
+      scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13)) +
+      scale_linetype_discrete(labels=c('dashed'="Voorspelling", 'dotted'="Voorspelling NNet", "5-jaarsgemiddelde")))
+    cat("\n")
+    print(ggplot(graph_data %>% filter(pred == T), aes(x=datum, y=n)) +
+      geom_ribbon(aes(ymax=upper_ci, ymin=lower_ci), fill=nog_colors[10]) +
+      geom_line() +
+      geom_point() +
+      geom_line(aes(y=nn), color=nog_colors[2]) +
+      geom_col(data=graph_data %>% filter(pred==F), fill=nog_colors[1]) +
+      labs(title="Verloop meldingen over tijd incl. voorspelling", subtitle=paste(inf, arima_tekst), x="Datum", y="Aantal", color="Voorspelling"))
+    cat("\n")
+    cat("<details><summary>Tabel voorspelling</summary>")
+    print(xtable(graph_data %>% filter(pred == T) %>% select(jaar, maand, nn, n, upper_ci, lower_ci)))
+    cat("</details>\n\n")
+  }
   cat("#### Leeftijd en geslacht\n")
   cat("<details><summary>Grafiek</summary>")
   print(ggplot(cases %>% filter(groep == inf), aes(x=leeftijd, fill=geslacht)) +
@@ -159,11 +381,21 @@ for (inf in infecties) {
   cat("\n")
   cat("#### Virologische weekstaat\n")
   if (sum(vir_weekstaat$n[vir_weekstaat$groep == inf], na.rm=T) > 0) {
+    vir_recent = vir_weekstaat %>% filter(groep == inf)
+    vir_meerj_gem = vir_weekstaat_historisch %>%
+      filter(groep == inf, jaar < startjaar1, week %in% vir_recent$week) %>%
+      complete(jaar, week, fill=list(n=0)) %>%
+      group_by(week, groep) %>%
+      summarize(se=sd(n, na.rm=T)/sqrt(n()), n=mean(n, na.rm=T), ci_low=n-1.96*se, ci_high=n+1.96*se) %>%
+      mutate(label=paste0(year(Sys.Date()), "-", week))
+    
     cat("<details><summary>Grafiek</summary>")
-    print(ggplot(vir_weekstaat %>% filter(groep == inf), aes(x=label, group=groep)) +
+    print(ggplot(vir_recent, aes(x=label, group=groep)) +
       geom_line(aes(y=n, col="Aantal meldingen")) +
       geom_line(aes(y=nlabs, col="Aantal laboratoria")) +
-      scale_color_manual(name="", values=c("Aantal meldingen"=nog_colors[1], "Aantal laboratoria"=nog_colors[2])) +
+      geom_ribbon(aes(ymin=ci_low, ymax=ci_high), alpha=0.3, data=vir_meerj_gem) +
+      geom_line(aes(y=n, col="Meerjaarsgemiddelde"), data=vir_meerj_gem) +
+      scale_color_manual(name="", values=c("Aantal meldingen"=nog_colors[1], "Aantal laboratoria"=nog_colors[2], "Meerjaarsgemiddelde"="blue")) +
       labs(x="Week", y="Aantal", title="Aantal positieve testen in laboratoria in de laatste 6 weken", subtitle=inf))
     cat("</details>\n")
   } else {
@@ -196,11 +428,118 @@ ggplotly(ggplot(cases %>% filter(diagnosezekerheid != "Discarded"), aes(y=groep,
   labs(x="Aantal", y="Infectie", fill="Melder", title="Meldingen per organisatie"))
 ```
 
+## Surveillance iGAS
+```{r}
+startdatum_igas = floor_date(Sys.Date() - months(6), unit="month")
+```
+
+```{sql connection=conn, output.var="igas"}
+SELECT * FROM vw_cases WHERE groep = 'Invasieve groep A-streptokokkeninfectie' AND peildatum >= ?startdatum_igas
+```
+
+```{r}
+igas$emm = str_extract(coalesce(igas$Strain_information, igas$Molecular_typing_data), "(\\d{1,2}\\.\\d+)")
+igas$cluster = str_extract(coalesce(igas$Strain_information, igas$Molecular_typing_data), "[a-zA-Z]\\d")
+igas$blokdatum = floor_date(igas$peildatum, unit="week")
+
+igas %>%
+  group_by(diagnose, emm) %>%
+  summarize(n=n()) %>%
+  arrange(emm)
+igas %>%
+  group_by(diagnose, cluster) %>%
+  summarize(n=n()) %>%
+  arrange(cluster)
+```
+
+```{r}
+ggplot(igas, aes(x=blokdatum, fill=emm)) +
+  geom_bar() +
+  labs(title="Voorkomen emm-typering bij iGAS-meldingen", subtitle="Alle diagnoses", x="Datum", y="Aantal (n)", fill="")
+```
+
+```{r}
+ggplot(igas %>% filter(str_detect(diagnose, "puerperal")), aes(x=blokdatum, fill=emm)) +
+  geom_bar() +
+  labs(title="Voorkomen emm-typering bij iGAS-meldingen", subtitle="Enkel kraamvrouwenkoorts", x="Datum", y="Aantal (n)")
+```
+
+```{r}
+ggplot(igas, aes(x=emm, fill=diagnose, label=after_stat(count))) +
+  geom_bar() +
+  geom_text(stat="count", position="stack", vjust=1) +
+  labs(title="Aantal emm-typering per diagnose", x="emm", y="Aantal (n)", fill="Diagnose")
+```
+
+```{r fig.width=12, fig.height=8}
+emm_palette = colorFactor("Set1", igas$emm)
+
+types = sort(unique(igas$emm))
+
+kaart = leaflet() %>%
+  addTiles(options=tileOptions(referrerPolicy="origin-when-cross-origin"))
+
+# geen idee wat dit doet, maar het voorkomt een fout
+# zie https://github.com/r-spatial/sf/issues/1762 en https://github.com/r-spatial/sf/issues/1771
+sf_use_s2(FALSE)
+
+for (type in types) {
+  inf_cases = igas %>%
+    filter(emm == type) %>%
+    mutate(postcode=ifelse(postcode < 1000, NA, postcode))
+  if (all(is.na(inf_cases$postcode))) next
+  inf_cases = inf_cases %>%
+    mutate(postcode=as.character(postcode),
+           popup=sprintf("%s %d (%s %s) - %s (%s) - %s (%s)<br />Peildatum: %s<br />Melddatum: %s<br />OSIRIS: %s (%s)<br />HPZone: %s",
+                         geslacht, leeftijd, emm, cluster, postcode, gemeentenaam, infectie, groep, peildatum, melddatum, statusmelding, melddatum, hpzone_id)) %>%
+    arrange(desc(peildatum)) %>%
+    group_by(emm, postcode) %>%
+    summarize(n=n(), popup=str_c(popup, collapse="<hr />")) %>%
+    mutate(label=sprintf("%s - %s - %d gevallen", postcode, emm, n))
+    
+  kaart = kaart %>%
+    addCircleMarkers(data=suppressWarnings(kaartdata %>% right_join(inf_cases, by=c("PC4"="postcode")) %>%
+                       st_centroid()),
+                     radius=~n*3,
+                     color=~emm_palette(emm),
+                     opacity=0.8,
+                     label=~label,
+                     popup=~popup,
+                     group=type)
+}
+
+kaart %>%
+  addLayersControl(overlayGroups=types)
+```
+
 
 # Overzicht situations in de laatste weken
 ```{sql connection=conn, output.var="situations"}
-SELECT * FROM vw_situations WHERE datum >= ?startdatum
+SELECT * FROM vw_situations_muiz WHERE datum >= ?startdatum
 ```
+
+```{r}
+situations = situations %>%
+  mutate(across(contains("datum"), ~as.Date(.x))) %>%
+  mutate(herkomst=case_when(!is.na(hpzone_id) & !is.na(muiz_id) ~ "Beiden",
+                            !is.na(hpzone_id) ~ "HPZone",
+                            !is.na(muiz_id) ~ "MUIZ"))
+```
+
+
+Herkomst:
+```{r}
+table(situations$herkomst)
+```
+
+```{r}
+ggplot(situations,
+       aes(x=datum, fill=herkomst)) +
+  geom_bar() +
+  scale_fill_manual(values=nog_colors) +
+  labs(title="Herkomst situations", x="Datum", y="Aantal", fill="Herkomst")
+```
+
 
 ```{r}
 ggplotly(ggplot(situations, aes(y=agent, fill=zekerheid)) +
@@ -209,9 +548,15 @@ ggplotly(ggplot(situations, aes(y=agent, fill=zekerheid)) +
 ```
 
 ```{r}
-ggplotly(ggplot(situations, aes(x=datum, fill=agent)) +
+ggplotly(ggplot(situations %>% mutate(datum=datum), aes(x=datum, fill=agent)) +
   geom_bar() +
-  labs(x="Datum", y="Aantal", title="Aantal gemelde uitbraken", fill="Zekerheid"))
+  labs(x="Datum", y="Aantal", title="Aantal gemelde uitbraken", fill="Verwekker"))
+```
+
+```{r}
+ggplotly(ggplot(situations %>% mutate(datum=datum), aes(x=datum, fill=scenario)) +
+  geom_bar() +
+  labs(x="Datum", y="Aantal", title="Aantal gemelde uitbraken", fill="Scenario"))
 ```
 
 ```{r}
@@ -220,7 +565,7 @@ ggplotly(ggplot(situations, aes(y=scenario, fill=agent)) +
   labs(x="Aantal", y="Type", title="Aantal gemelde uitbraken", fill="Verwekker"))
 ```
 
-## Vergelijking met eerdere jaren
+## Vergelijking met eerdere jaren (agent)
 ```{r}
 agents = unique(situations$agent) %>% sort()
 agent_sql = glue_sql("{agents*}", .con=conn)
@@ -228,17 +573,24 @@ beginjaar = year(startdatum) - 5
 ```
 
 ```{sql connection=conn, output.var="situations.historisch"}
-SELECT YEAR(datum) as jaar, MONTH(datum) AS maand, agent, COUNT(hpzone_id) AS n FROM vw_situations
+SELECT YEAR(datum) as jaar, MONTH(datum) AS maand, agent, COUNT(hpzone_id) AS n FROM vw_situations_muiz
 WHERE agent IN (?agent_sql) AND YEAR(datum) >= ?beginjaar
 GROUP BY YEAR(datum), MONTH(datum), agent
 ```
 
 ```{r results="asis"}
 for (ag in agents) {
+  meerj_gem = situations.historisch %>%
+    filter(agent == ag, jaar < startjaar1) %>%
+    complete(jaar, maand, fill=list(n=0)) %>%
+    group_by(maand) %>%
+    summarize(se=sd(n, na.rm=T)/sqrt(n()), n=mean(n, na.rm=T), ci_low=n-1.96*se, ci_high=n+1.96*se)
+  
   cat("### ", ag, "\n")
   suppressWarnings(print(ggplot(situations.historisch %>% filter(agent == ag), aes(x=maand, y=n)) +
-    geom_smooth() +
     geom_col(aes(fill=factor(jaar)), position="dodge") +
+    geom_ribbon(aes(ymin=ci_low, ymax=ci_high), data=meerj_gem, alpha=0.3) +
+    geom_line(data=meerj_gem, linewidth=1, color="blue") +
     labs(title="Verloop uitbraken over tijd", subtitle=ag, x="Maand", y="Aantal", fill="Jaar") +
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13))))
   cat("\n")
@@ -247,6 +599,60 @@ for (ag in agents) {
     labs(title="Verloop uitbraken over tijd", subtitle=ag, x="Datum", y="Aantal"))
   cat("\n")
   print(xtable(situations.historisch %>% filter(agent == ag) %>% group_by(jaar) %>% summarize(n=sum(n))))
+  cat("\n")
+  print(xtable(situations.historisch %>%
+                 filter(agent == ag) %>%
+                 group_by(jaar, maand) %>%
+                 summarize(n=sum(n)) %>%
+                 pivot_wider(names_from="jaar", values_from="n") %>%
+                 arrange(maand)))
+  cat("\n\n")
+}
+```
+
+## Vergelijking met eerdere jaren (scenario)
+```{r}
+scen = unique(situations$scenario) %>% sort()
+scen_sql = glue_sql("{scen*}", .con=conn)
+beginjaar = year(startdatum) - 5
+```
+
+```{sql connection=conn, output.var="situations.historisch"}
+SELECT YEAR(datum) as jaar, MONTH(datum) AS maand, scenario, COUNT(hpzone_id) AS n FROM vw_situations_muiz
+WHERE scenario IN (?scen_sql) AND YEAR(datum) >= ?beginjaar
+GROUP BY YEAR(datum), MONTH(datum), scenario
+```
+
+```{r results="asis"}
+for (sc in scen) {
+  meerj_gem = situations.historisch %>%
+    filter(scenario == sc, jaar < startjaar1) %>%
+    group_by(jaar, maand) %>%
+    summarize(n=sum(n), .groups="drop") %>%
+    complete(jaar, maand, fill=list(n=0)) %>%
+    group_by(maand) %>%
+    summarize(se=sd(n, na.rm=T)/sqrt(n()), n=mean(n, na.rm=T), ci_low=n-1.96*se, ci_high=n+1.96*se)
+  
+  cat("### ", sc, "\n")
+  suppressWarnings(print(ggplot(situations.historisch %>% filter(scenario == sc), aes(x=maand, y=n)) +
+    geom_col(aes(fill=factor(jaar)), position="dodge") +
+    geom_ribbon(aes(ymin=ci_low, ymax=ci_high), data=meerj_gem, alpha=0.3) +
+    geom_line(data=meerj_gem, linewidth=1, color="blue") +
+    labs(title="Verloop uitbraken over tijd", subtitle=sc, x="Maand", y="Aantal", fill="Jaar") +
+    scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13))))
+  cat("\n")
+  print(ggplot(situations.historisch %>% filter(scenario == sc) %>% mutate(peildatum=ymd(sprintf("%d-%d-1", jaar, maand))), aes(x=peildatum, y=n)) +
+    geom_col(position="dodge", fill=nog_colors[1]) +
+    labs(title="Verloop uitbraken over tijd", subtitle=sc, x="Datum", y="Aantal"))
+  cat("\n")
+  print(xtable(situations.historisch %>% filter(scenario == sc) %>% group_by(jaar) %>% summarize(n=sum(n))))
+  cat("\n")
+  print(xtable(situations.historisch %>%
+                 filter(scenario == sc) %>%
+                 group_by(jaar, maand) %>%
+                 summarize(n=sum(n)) %>%
+                 pivot_wider(names_from="jaar", values_from="n") %>%
+                 arrange(maand)))
   cat("\n\n")
 }
 ```
@@ -302,10 +708,17 @@ GROUP BY YEAR(startdatum), MONTH(startdatum), onderwerp
 
 ```{r results="asis"}
 for (ond in onderwerpen) {
+  meerj_gem = enquiries.historisch %>%
+    filter(onderwerp == ond) %>%
+    complete(jaar, maand, fill=list(n=0)) %>%
+    group_by(maand) %>%
+    summarize(se=sd(n, na.rm=T)/sqrt(n()), n=mean(n, na.rm=T), ci_low=n-1.96*se, ci_high=n+1.96*se)
+  
   cat("### ", ond, "\n")
   suppressWarnings(print(ggplot(enquiries.historisch %>% filter(onderwerp == ond), aes(x=maand, y=n)) +
-    geom_smooth() +
     geom_col(aes(fill=factor(jaar)), position="dodge") +
+    geom_ribbon(aes(ymin=ci_low, ymax=ci_high), data=meerj_gem, alpha=0.3) +
+    geom_line(data=meerj_gem, linewidth=1, color="blue") +
     labs(title="Verloop vragen over tijd", subtitle=ond, x="Maand", y="Aantal", fill="Jaar") +
     scale_x_continuous(breaks=c(1, 3, 5, 7, 9, 11), labels=c("Jan", "Maart", "Mei", "Juli", "Sept", "Nov"), limits=c(0, 13))))
   cat("\n")
@@ -314,6 +727,13 @@ for (ond in onderwerpen) {
     labs(title="Verloop vragen over tijd", subtitle=ond, x="Datum", y="Aantal"))
   cat("\n")
   print(xtable(enquiries.historisch %>% filter(onderwerp == ond) %>% group_by(jaar) %>% summarize(n=sum(n))))
+  cat("\n")
+  print(xtable(enquiries.historisch %>%
+                 filter(onderwerp == ond) %>%
+                 group_by(jaar, maand) %>%
+                 summarize(n=sum(n)) %>%
+                 pivot_wider(names_from="jaar", values_from="n") %>%
+                 arrange(maand)))
   cat("\n\n")
 }
 ```
@@ -326,13 +746,15 @@ freq.table(enquiries$onderwerp, enquiries$status)
 
 
 # Geografische spreiding
+
+## Cases
 ```{r fig.width=12, fig.height=8}
 casespalette = colorFactor("Set1", cases$groep)
 
 inf_groepen = sort(unique(cases$groep))
 
 kaart = leaflet() %>%
-  addTiles()
+  addTiles(options=tileOptions(referrerPolicy="origin-when-cross-origin"))
 
 # geen idee wat dit doet, maar het voorkomt een fout
 # zie https://github.com/r-spatial/sf/issues/1762 en https://github.com/r-spatial/sf/issues/1771
@@ -345,8 +767,8 @@ for (inf_groep in inf_groepen) {
   if (all(is.na(inf_cases$postcode))) next
   inf_cases = inf_cases %>%
     mutate(postcode=as.character(postcode),
-           popup=sprintf("%s%d - %s (%s) - %s (%s)<br />Peildatum: %s<br />Melddatum: %s<br />OSIRIS: %s (%s)",
-                         geslacht, leeftijd, postcode, gemeentenaam, infectie, groep, peildatum, melddatum, statusmelding, melddatum)) %>%
+           popup=sprintf("%s%d - %s (%s) - %s (%s)<br />Peildatum: %s<br />Melddatum: %s<br />OSIRIS: %s (%s)<br />HPZone: %s",
+                         geslacht, leeftijd, postcode, gemeentenaam, infectie, groep, peildatum, melddatum, statusmelding, melddatum, hpzone_id)) %>%
     arrange(desc(peildatum)) %>%
     group_by(groep, postcode) %>%
     summarize(n=n(), popup=str_c(popup, collapse="<hr />")) %>%
@@ -367,22 +789,23 @@ kaart %>%
   addLayersControl(overlayGroups=inf_groepen)
 ```
 
-```{r}
-agents = unique(c(situations$agent_groep, situations$agent[is.na(situations$agent_groep)]))
+## Situations (agent)
+```{r fig.width=12, fig.height=8}
+agents = unique(c(situations$groep, situations$agent[is.na(situations$groep)]))
 
 agentspalette = colorFactor("Set1", agents)
 
 kaart = leaflet() %>%
-  addTiles()
+  addTiles(options=tileOptions(referrerPolicy="origin-when-cross-origin"))
 
 for (ag in agents) {
   inf_situations = situations %>%
-    filter(agent == ag | agent_groep == ag)
+    filter(agent == ag | groep == ag)
   if (all(is.na(inf_situations$postcode))) next
   inf_situations = inf_situations %>%
     mutate(postcode=as.character(postcode),
-           popup=sprintf("%s (%s) - %s (%s)<br />Peildatum: %s<br />Type: %s (%s)<br />Artikel 26: %s",
-                         postcode, gemeentenaam, agent, agent_groep, datum, type, status, ifelse(artikel26 == 1, "ja", "nee"))) %>%
+           popup=sprintf("%s (%s) - %s - %s (%s)<br />Peildatum: %s<br />Type: %s (%s)<br />Artikel 26: %s<br />Muiz: %s",
+                         postcode, gemeentenaam, hpzone_id, agent, groep, datum, type, status, ifelse(artikel26 == 1, "ja", "nee"), ifelse(is.na(muiz_id), "nee", "ja"))) %>%
     arrange(desc(datum)) %>%
     group_by(agent, postcode) %>%
     summarize(n=n(), popup=str_c(popup, collapse="<hr />")) %>%
@@ -403,7 +826,50 @@ kaart %>%
   addLayersControl(overlayGroups=agents)
 ```
 
+## Situations (scenario)
+```{r fig.width=12, fig.height=8}
+scen = unique(c(situations$scenario_groep, situations$scenario[is.na(situations$scenario_groep)]))
+
+scenpalette = colorFactor("Set1", scen)
+
+kaart = leaflet() %>%
+  addTiles(options=tileOptions(referrerPolicy="origin-when-cross-origin"))
+
+for (sc in scen) {
+  inf_situations = situations %>%
+    filter(scenario == sc | scenario_groep == sc)
+  if (all(is.na(inf_situations$postcode))) next
+  inf_situations = inf_situations %>%
+    mutate(postcode=as.character(postcode),
+           popup=sprintf("%s (%s) - %s - %s (%s)<br />Peildatum: %s<br />Type: %s (%s)<br />Artikel 26: %s<br>Muiz: %s",
+                         postcode, gemeentenaam, hpzone_id, scenario, scenario_groep, datum, type, status, ifelse(artikel26 == 1, "ja", "nee"), ifelse(is.na(muiz_id), "nee", "ja"))) %>%
+    arrange(desc(datum)) %>%
+    group_by(scenario, postcode) %>%
+    summarize(n=n(), popup=str_c(popup, collapse="<hr />")) %>%
+    mutate(label=sprintf("%s - %s - %d gevallen", postcode, scenario, n))
+    
+  kaart = kaart %>%
+    addCircleMarkers(data=suppressWarnings(kaartdata %>% right_join(inf_situations, by=c("PC4"="postcode")) %>%
+                       st_centroid()),
+                     radius=~n*3,
+                     color=~scenpalette(sc),
+                     opacity=0.8,
+                     label=~label,
+                     popup=~popup,
+                     group=sc)
+}
+
+kaart %>%
+  addLayersControl(overlayGroups=scen)
+```
+
 # Virologische weekstaten
+```{r}
+ggplot(vir_weekstaat %>% group_by(label) %>% summarize(nlabs=max(nlabs)), aes(x=label, y=nlabs)) +
+  geom_col(fill=nog_colors[1]) +
+  labs(title="Aantal deelnemende laboratoria in de laatste 6 weken", x="Week", y="Aantal")
+```
+
 ```{r}
 ggplotly(ggplot(vir_weekstaat, aes(x=label, y=n, color=virus, group=virus)) +
            geom_line() +
@@ -414,7 +880,7 @@ ggplotly(ggplot(vir_weekstaat, aes(x=label, y=n, color=virus, group=virus)) +
 verschildata = vir_weekstaat %>%
   group_by(virus) %>%
   mutate(verschil=n-lag(n),
-         verschil_rel=verschil/n*100)
+         verschil_rel=verschil/lag(n)*100)
 ggplotly(ggplot(verschildata %>% filter(!is.na(verschil)), aes(x=label, y=virus, fill=verschil_rel, label=verschil)) +
   geom_tile() +
   geom_text() +
@@ -422,10 +888,40 @@ ggplotly(ggplot(verschildata %>% filter(!is.na(verschil)), aes(x=label, y=virus,
   labs(x="Week", y="Virus", title="Relatief verschil virologische weekstaat met voorgaande week", fill="Verschil (%)"))
 ```
 
+```{sql connection=conn, output.var="vir_weekstaat_full"}
+SELECT * FROM vw_vir_weekstaat
+WHERE jaar = ?startjaar1
+ORDER BY jaar, week ASC
+```
+
+## Grafieken per virus {.tabset}
+```{r results="asis"}
+virussen = unique(vir_weekstaat_full$virus) %>% sort()
+for (vir in virussen) {
+  meerj_gem = vir_weekstaat_historisch %>%
+    filter(virus == vir, jaar < startjaar1) %>%
+    complete(jaar, week, fill=list(n=0)) %>%
+    group_by(week) %>%
+    summarize(se=sd(n, na.rm=T)/sqrt(n()), n=mean(n, na.rm=T), ci_low=n-1.96*se, ci_high=n+1.96*se)
+  
+  cat("### ", vir, "\n")
+  print(ggplot(vir_weekstaat_full %>% filter(virus == vir), aes(x=week, y=n)) +
+    geom_ribbon(aes(ymin=ci_low, ymax=ci_high), data=meerj_gem, alpha=0.3) +
+    geom_line(aes(color="Meerjaarsgemiddelde", group="Meerjaarsgemiddelde"), data=meerj_gem) +
+    geom_line(aes(color="Huidig jaar", group="Huidig jaar")) +
+    labs(title="Verloop virologische weekstaten over tijd", subtitle=vir, x="Week", y="Aantal (n)", color="Verloop") +
+    scale_color_manual(values=c("Huidig jaar"=nog_colors[2], "Meerjaarsgemiddelde"="blue")))
+  cat("\n")
+  
+  print(xtable(vir_weekstaat_historisch %>% filter(virus == vir) %>% group_by(jaar) %>% summarize(n=sum(n))))
+  cat("\n\n")
+}
+```
+
 
 # Data Nivel peilstations
 ```{r echo=F}
-conn.nivel = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0\\odbnog", Database="ODBNOG")
+conn.nivel = dbConnect(odbc::odbc(), Driver="SQL Server", Server="az-odb0.ssc.local\\odbnog", Database="ODBNOG")
 ```
 
 ```{sql connection=conn.nivel, output.var="niveldata"}
@@ -437,47 +933,47 @@ WHERE ((jaar = ?startjaar1 AND week >= ?startweek1)
 ```
 
 ```{r}
-niveldata$weektekst = sprintf("%d-%02.0f", niveldata$jaar, niveldata$week)
-weken = unique(niveldata$weektekst)
-volgorde = order(weken)
-weeknummers = data.frame(weektekst=weken, weeknummer=volgorde)
-niveldata = niveldata %>%
-  left_join(weeknummers, by="weektekst")
+# niveldata$weektekst = sprintf("%d-%02.0f", niveldata$jaar, niveldata$week)
+# weken = unique(niveldata$weektekst)
+# volgorde = order(weken)
+# weeknummers = data.frame(weektekst=weken, weeknummer=volgorde)
+# niveldata = niveldata %>%
+#   left_join(weeknummers, by="weektekst")
 ```
 
 
 ```{r}
 # alleen aandoeningen waarvan er tenminste één meting boven het landelijke gemiddelde ligt
-aandoeningen = unique(niveldata$aandoening[niveldata$prevalentie_ratio > 1.0])
-for (a in aandoeningen) {
-  data = niveldata[niveldata$aandoening == a,]
-  
-  plot(data$weeknummer[data$ggd_regio == 6], data$per100k[data$ggd_regio == 6], col=nog_colors[1], type="l", lwd=2,
-       main=a, ylab="Incidentie per 100.000", xlab=NA, axes=F,
-       ylim=c(min(data$per100k, na.rm=T), max(data$per100k, na.rm=T)))
-  grid(nx=NA, ny=NULL)
-  par(new=T)
-  plot(data$weeknummer[data$ggd_regio == 6], data$per100k[data$ggd_regio == 6], col=nog_colors[1], type="l", lwd=2,
-       main=a, ylab="Incidentie per 100.000", xlab=NA, axes=F,
-       ylim=c(min(data$per100k, na.rm=T), max(data$per100k, na.rm=T)))
-  axis(1, at=weeknummers$weeknummer, labels=weeknummers$weektekst)
-  axis(2, at=pretty(data$per100k))
-  for (i in 1:4) {
-    regio = c(4, 5, 7, 8)[i]
-    lines(data$weeknummer[data$ggd_regio == regio], data$per100k[data$ggd_regio == regio], col=nog_colors[i + 1])
-  }
-  lines(data$weeknummer[data$ggd_regio == 100], data$per100k[data$ggd_regio == 100], col="black", lty="dashed")
-  par(new=T)
-  plot(0, 0, type="n", axes=F, main=NA, xlab=NA, ylab=NA)
-  legend("bottom", c("NOG", "IJsselland", "Twente", "G-M", "G-Z", "NL"), col=c(nog_colors, "black"), lwd=c(2, rep(1, 5)), lty=c(rep("solid", 5), "dashed"),
-         horiz=T, xpd=T, inset=c(0, -0.30), cex=0.8)
-  
-  # print(ggplot(niveldata %>% filter(aandoening == a), aes(x=weeknummer, y=per100k, col=ggd_naam)) +
-  #   geom_line() +
-  #   scale_x_continuous(breaks=weeknummers$weeknummer, labels=weeknummers$weektekst) +
-  #   labs(x="Week", y="Incidentie per 100.000", title=a) +
-  #   theme(legend.position="bottom",
-  #         axis.text.x=element_text(angle=90, vjust = 0.5, hjust=1)))
-}
+# aandoeningen = unique(niveldata$aandoening[niveldata$prevalentie_ratio > 1.0])
+# for (a in aandoeningen) {
+#   data = niveldata[niveldata$aandoening == a,]
+#   
+#   plot(data$weeknummer[data$ggd_regio == 6], data$per100k[data$ggd_regio == 6], col=nog_colors[1], type="l", lwd=2,
+#        main=a, ylab="Incidentie per 100.000", xlab=NA, axes=F,
+#        ylim=c(min(data$per100k, na.rm=T), max(data$per100k, na.rm=T)))
+#   grid(nx=NA, ny=NULL)
+#   par(new=T)
+#   plot(data$weeknummer[data$ggd_regio == 6], data$per100k[data$ggd_regio == 6], col=nog_colors[1], type="l", lwd=2,
+#        main=a, ylab="Incidentie per 100.000", xlab=NA, axes=F,
+#        ylim=c(min(data$per100k, na.rm=T), max(data$per100k, na.rm=T)))
+#   axis(1, at=weeknummers$weeknummer, labels=weeknummers$weektekst)
+#   axis(2, at=pretty(data$per100k))
+#   for (i in 1:4) {
+#     regio = c(4, 5, 7, 8)[i]
+#     lines(data$weeknummer[data$ggd_regio == regio], data$per100k[data$ggd_regio == regio], col=nog_colors[i + 1])
+#   }
+#   lines(data$weeknummer[data$ggd_regio == 100], data$per100k[data$ggd_regio == 100], col="black", lty="dashed")
+#   par(new=T)
+#   plot(0, 0, type="n", axes=F, main=NA, xlab=NA, ylab=NA)
+#   legend("bottom", c("NOG", "IJsselland", "Twente", "G-M", "G-Z", "NL"), col=c(nog_colors, "black"), lwd=c(2, rep(1, 5)), lty=c(rep("solid", 5), "dashed"),
+#          horiz=T, xpd=T, inset=c(0, -0.30), cex=0.8)
+#   
+#   # print(ggplot(niveldata %>% filter(aandoening == a), aes(x=weeknummer, y=per100k, col=ggd_naam)) +
+#   #   geom_line() +
+#   #   scale_x_continuous(breaks=weeknummers$weeknummer, labels=weeknummers$weektekst) +
+#   #   labs(x="Week", y="Incidentie per 100.000", title=a) +
+#   #   theme(legend.position="bottom",
+#   #         axis.text.x=element_text(angle=90, vjust = 0.5, hjust=1)))
+# }
 ```
 
