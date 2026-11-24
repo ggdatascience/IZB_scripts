@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+    <head>
+        <title>Datacontrole HPZone</title>
+
+        <style type="text/css">
+            html {
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                color: #1D1756;
+                background-color: #ffffff;
+                font-family: Ubuntu;
+
+                margin: 0;
+                padding: 0;
+            }
+
+            #container {
+                width: 80%;
+                margin: 0 auto 0 auto;
+                padding: 5px;
+            }
+
+            h1 {
+                background-color: #1D1756;
+                color: #ffffff;
+                padding: 0;
+                border: 3px #1D1756 solid;
+            }
+
+            #header img {
+                float: right;
+                max-height: 80px;
+                margin: 0;
+            }
+
+            #header span {
+                font-size: 24px;
+                margin-top: 5px;
+            }
+
+            #footer {
+                background-color: rgb(239, 244, 250);
+                width: 95%;
+                position: fixed;
+                bottom: 0;
+                padding: 10px;
+                margin: 0;
+            }
+
+            table#fouten {
+                width: 90%;
+                margin: 0 auto 0 auto;
+            }
+
+            table#stats {
+                width: 90%;
+            }
+
+            table th {
+                text-align: left;
+                padding: 5px 0 5px 0;
+            }
+
+            table#fouten td {
+                padding: 1px;
+            }
+
+            colgroup col:first-of-type {
+                width: 20%;
+            }
+        </style>
+    
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:_dlc_DocId msdt:dt="string">NOG-1467960350-122308</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">fdd6c0ed-9340-41ec-951c-ee9d955d3908</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://hetservicecentrum.sharepoint.com/sites/NOGinfectieziektenbestrijding/_layouts/15/DocIdRedir.aspx?ID=NOG-1467960350-122308, NOG-1467960350-122308</mso:_dlc_DocIdUrl>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
+</head>
+    <body>
+        <table id="container">
+            <tr id="header">
+                <td>
+                    <span>Casu&iuml;stiekcontrole</span><br /><br />
+                    <span style="font-size: 14px;">Periode: {begindatum} t/m {einddatum}</span>
+                </td>
+                <td align="right"><img src="{logo}" height="80" /></td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <h1>&nbsp;Overzicht</h1>
+                    Beste {naam},<br />
+                    <br />
+                    Er zijn deze maand {aantal_cases} registraties in HPZone verwerkt, waarvan jij er {aantal_cases_mdw} hebt behandeld. Daarmee ben je nummer {num_mdw} van de {num_mdw_totaal} medewerkers!<br />
+                    Van het totaal aantal mogelijke dataproblemen ({aantal_fouten_totaal}) zitten er {aantal_fouten_mdw} in {aantal_cases_fouten} registratie(s) waarin jij als investigating officer staat. 
+                    Zou je de onderstaande dataproblemen kunnen oplossen? Dat helpt ons om gedegen en betrouwbare surveillance uit te voeren. Alvast bedankt!<br />
+                    <br />
+                    <h1>&nbsp;Persoonlijke statistieken</h1>
+                    Je hebt deze maand {aantal_cases_mdw} registraties verwerkt. Hiervan was {perc_cases_meldplicht} meldingsplichtig. Je meestvoorkomende infectieziekte was {topinf_mdw}. Hiervan heb jij {perc_topinf} van de gevallen verwerkt. 
+                    De meestvoorkomende infectie binnen de hele regio was {topinf}, waarvan jij {topinf_n_mdw}/{topinf_n} verwerkt hebt.<br />
+                    <br />
+                    Je hebt je tijd besteed aan de volgende infecties:<br />
+                    <br />
+                    <table id="stats">
+                        <tr><th>Infectieziekte</th><th>Aantal</th><th>Perc</th></tr>
+                        {mdw_inf}
+                    </table>
+                    <br />
+                    <h1>&nbsp;Dataproblemen</h1>
+                    {fouten}
+                    <br />
+                    <br />
+                    <br />
+                </td>
+            </tr>
+        </table>
+
+        <div id="footer">
+            Controledatum: {datum}. Let op: deze mail is automatisch gegenereerd en zonder menselijke interventie verstuurd.
+        </div>
+    </body>
+</html>
